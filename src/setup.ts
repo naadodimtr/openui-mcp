@@ -3,156 +3,151 @@ import { resolve, join, dirname } from "node:path";
 import { homedir } from "node:os";
 import * as readline from "node:readline";
 
+const home = homedir();
+const binaryPath = process.execPath;
+
 interface ToolConfig {
   name: string;
   configPath: string;
-  format: (binary: string, port: number) => object;
-  merge: (existing: any, entry: object) => any;
+  write: (port: number) => void;
 }
 
-const home = homedir();
-const binaryPath = process.execPath;
+function readJson(path: string): any {
+  if (!existsSync(path)) return {};
+  try {
+    return JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeJson(path: string, data: any) {
+  const dir = dirname(path);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(path, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}
+
+function writeMcpServersEntry(configPath: string, key: string, port: number, entry: any) {
+  const data = readJson(configPath);
+  data[key] = data[key] || {};
+  data[key].openui = entry;
+  writeJson(configPath, data);
+}
+
+function stdioEntry(port: number) {
+  return {
+    command: binaryPath,
+    args: [],
+    env: { PREVIEWER_PORT: String(port) },
+  };
+}
 
 const tools: ToolConfig[] = [
   {
     name: "OpenCode",
     configPath: join(home, ".config", "opencode", "opencode.json"),
-    format: (bin, port) => ({
-      type: "local",
-      command: [bin],
-      environment: { PREVIEWER_PORT: String(port) },
-      enabled: true,
-    }),
-    merge: (existing, entry) => {
-      existing.mcp = existing.mcp || {};
-      existing.mcp.openui = entry;
-      return existing;
+    write(port) {
+      const data = readJson(this.configPath);
+      data.mcp = data.mcp || {};
+      data.mcp.openui = {
+        type: "local",
+        command: [binaryPath],
+        environment: { PREVIEWER_PORT: String(port) },
+        enabled: true,
+      };
+      writeJson(this.configPath, data);
     },
   },
   {
     name: "Claude Code",
     configPath: join(home, ".claude.json"),
-    format: (bin, port) => ({
-      command: bin,
-      args: [],
-      env: { PREVIEWER_PORT: String(port) },
-    }),
-    merge: (existing, entry) => {
-      existing.mcpServers = existing.mcpServers || {};
-      existing.mcpServers.openui = entry;
-      return existing;
+    write(port) {
+      writeMcpServersEntry(this.configPath, "mcpServers", port, stdioEntry(port));
     },
   },
   {
     name: "Cursor",
     configPath: join(home, ".cursor", "mcp.json"),
-    format: (bin, port) => ({
-      command: bin,
-      args: [],
-      env: { PREVIEWER_PORT: String(port) },
-    }),
-    merge: (existing, entry) => {
-      existing.mcpServers = existing.mcpServers || {};
-      existing.mcpServers.openui = entry;
-      return existing;
+    write(port) {
+      writeMcpServersEntry(this.configPath, "mcpServers", port, stdioEntry(port));
     },
   },
   {
     name: "Windsurf",
     configPath: join(home, ".codeium", "windsurf", "mcp_config.json"),
-    format: (bin, port) => ({
-      command: bin,
-      args: [],
-      env: { PREVIEWER_PORT: String(port) },
-    }),
-    merge: (existing, entry) => {
-      existing.mcpServers = existing.mcpServers || {};
-      existing.mcpServers.openui = entry;
-      return existing;
+    write(port) {
+      writeMcpServersEntry(this.configPath, "mcpServers", port, stdioEntry(port));
     },
   },
   {
     name: "Gemini CLI",
     configPath: join(home, ".gemini", "settings.json"),
-    format: (bin, port) => ({
-      command: bin,
-      args: [],
-      env: { PREVIEWER_PORT: String(port) },
-    }),
-    merge: (existing, entry) => {
-      existing.mcpServers = existing.mcpServers || {};
-      existing.mcpServers.openui = entry;
-      return existing;
+    write(port) {
+      writeMcpServersEntry(this.configPath, "mcpServers", port, stdioEntry(port));
     },
   },
   {
     name: "GitHub Copilot",
     configPath: join(process.cwd(), ".github", "copilot-mcp.json"),
-    format: (bin, port) => ({
-      command: bin,
-      args: [],
-      env: { PREVIEWER_PORT: String(port) },
-    }),
-    merge: (existing, entry) => {
-      existing.servers = existing.servers || {};
-      existing.servers.openui = entry;
-      return existing;
+    write(port) {
+      writeMcpServersEntry(this.configPath, "servers", port, stdioEntry(port));
     },
   },
   {
-    name: "Amazon Q",
-    configPath: join(home, ".aws", "amazonq", "mcp.json"),
-    format: (bin, port) => ({
-      command: bin,
-      args: [],
-      env: { PREVIEWER_PORT: String(port) },
-    }),
-    merge: (existing, entry) => {
-      existing.mcpServers = existing.mcpServers || {};
-      existing.mcpServers.openui = entry;
-      return existing;
+    name: "Codex",
+    configPath: join(home, ".codex", "config.toml"),
+    write(port) {
+      const dir = dirname(this.configPath);
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+      let content = "";
+      if (existsSync(this.configPath)) {
+        content = readFileSync(this.configPath, "utf-8");
+      }
+
+      const serverBlock = [
+        "",
+        "[mcp_servers.openui]",
+        `command = "${binaryPath.replace(/\\/g, "/")}"`,
+        "args = []",
+        "",
+        "[mcp_servers.openui.env]",
+        `PREVIEWER_PORT = "${port}"`,
+        "",
+      ].join("\n");
+
+      if (content.includes("[mcp_servers.openui]")) {
+        content = content.replace(
+          /\[mcp_servers\.openui\][\s\S]*?(?=\n\[|$)/,
+          serverBlock.trim()
+        );
+      } else {
+        content = content.trimEnd() + "\n" + serverBlock;
+      }
+
+      writeFileSync(this.configPath, content, "utf-8");
     },
   },
   {
-    name: "Cline",
-    configPath: join(home, ".vscode", "settings.json"),
-    format: (bin, port) => ({
-      command: bin,
-      args: [],
-      env: { PREVIEWER_PORT: String(port) },
-    }),
-    merge: (existing, entry) => {
-      existing["cline.mcpServers"] = existing["cline.mcpServers"] || {};
-      existing["cline.mcpServers"].openui = entry;
-      return existing;
+    name: "Antigravity",
+    configPath: join(home, ".gemini", "config", "mcp_config.json"),
+    write(port) {
+      writeMcpServersEntry(this.configPath, "mcpServers", port, stdioEntry(port));
     },
   },
   {
-    name: "RooCode",
-    configPath: join(home, ".vscode", "settings.json"),
-    format: (bin, port) => ({
-      command: bin,
-      args: [],
-      env: { PREVIEWER_PORT: String(port) },
-    }),
-    merge: (existing, entry) => {
-      existing["roo-cline.mcpServers"] = existing["roo-cline.mcpServers"] || {};
-      existing["roo-cline.mcpServers"].openui = entry;
-      return existing;
-    },
-  },
-  {
-    name: "Kilo Code",
-    configPath: join(home, ".vscode", "settings.json"),
-    format: (bin, port) => ({
-      command: bin,
-      args: [],
-      env: { PREVIEWER_PORT: String(port) },
-    }),
-    merge: (existing, entry) => {
-      existing["kilo-code.mcpServers"] = existing["kilo-code.mcpServers"] || {};
-      existing["kilo-code.mcpServers"].openui = entry;
-      return existing;
+    name: "Crush",
+    configPath: join(home, ".config", "crush", "crush.json"),
+    write(port) {
+      const data = readJson(this.configPath);
+      data.mcp = data.mcp || {};
+      data.mcp.openui = {
+        type: "stdio",
+        command: binaryPath,
+        args: [],
+        env: { PREVIEWER_PORT: String(port) },
+      };
+      writeJson(this.configPath, data);
     },
   },
 ];
@@ -165,7 +160,7 @@ export async function runSetup(defaultPort: number) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   console.log("\n  openui-mcp setup\n");
-  console.log("  Available MCP clients:\n");
+  console.log("  Select your MCP client:\n");
 
   tools.forEach((t, i) => {
     console.log(`    ${i + 1}. ${t.name}`);
@@ -188,26 +183,9 @@ export async function runSetup(defaultPort: number) {
 
   rl.close();
 
-  const entry = tool.format(binaryPath, port);
-  const configDir = dirname(tool.configPath);
+  tool.write(port);
 
-  if (!existsSync(configDir)) {
-    mkdirSync(configDir, { recursive: true });
-  }
-
-  let existing: any = {};
-  if (existsSync(tool.configPath)) {
-    try {
-      existing = JSON.parse(readFileSync(tool.configPath, "utf-8"));
-    } catch {
-      existing = {};
-    }
-  }
-
-  const updated = tool.merge(existing, entry);
-  writeFileSync(tool.configPath, JSON.stringify(updated, null, 2) + "\n", "utf-8");
-
-  console.log(`\n  ✓ Added openui-mcp to ${tool.name} config`);
+  console.log(`\n  ✓ Added openui-mcp to ${tool.name}`);
   console.log(`    Config: ${tool.configPath}`);
   console.log(`    Preview: http://localhost:${port}`);
   console.log(`    MCP: stdio (auto-managed by ${tool.name})\n`);

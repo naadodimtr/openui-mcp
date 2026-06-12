@@ -6,7 +6,7 @@ MCP server for creating structured web UI through AI chat. Connects to any MCP c
 
 ```
 MCP Client (opencode)  →  MCP Server (stdio + HTTP)  →  writes .openui/spec.oui
-                                                      →  serves previewer SPA + /api/spec
+                                                      →  Bun.serve() on :6556
                                                               ↓
                                                       Browser polls /api/spec → renders UI
 ```
@@ -16,8 +16,18 @@ MCP Client (opencode)  →  MCP Server (stdio + HTTP)  →  writes .openui/spec.
 ```bash
 bun install
 cd previewer && bun install && bun run build && cd ..
-bun src/server.ts   # MCP server + previewer on http://localhost:3000
+bun src/server.ts   # MCP server + previewer on http://localhost:6556
 ```
+
+## Setup Wizard
+
+Auto-configure your MCP client with a compiled binary:
+
+```bash
+./openui-mcp --setup
+```
+
+Supports: OpenCode, Claude Code, Cursor, Windsurf, Gemini CLI, GitHub Copilot, Codex, Antigravity, Crush.
 
 ## MCP Client Configuration
 
@@ -25,26 +35,7 @@ bun src/server.ts   # MCP server + previewer on http://localhost:3000
 
 ```json
 {
-  "mcpServers": {
-    "openui": {
-      "type": "local",
-      "command": ["bun", "src/server.ts"],
-      "cwd": "/path/to/openui-mcp",
-      "enabled": true
-    }
-  }
-}
-```
-
-### Compiled Binary (no Bun required)
-
-```bash
-bun build --compile src/server.ts --outfile openui-mcp
-```
-
-```json
-{
-  "mcpServers": {
+  "mcp": {
     "openui": {
       "type": "local",
       "command": ["/path/to/openui-mcp"],
@@ -53,6 +44,43 @@ bun build --compile src/server.ts --outfile openui-mcp
   }
 }
 ```
+
+### Claude Desktop / Cursor / Windsurf
+
+```json
+{
+  "mcpServers": {
+    "openui": {
+      "command": "/path/to/openui-mcp",
+      "args": [],
+      "env": { "PREVIEWER_PORT": "6556" }
+    }
+  }
+}
+```
+
+### From source (no compile)
+
+```json
+{
+  "mcpServers": {
+    "openui": {
+      "command": "bun",
+      "args": ["src/server.ts"],
+      "env": { "PREVIEWER_PORT": "6556" }
+    }
+  }
+}
+```
+
+## CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--port=N` | Override previewer HTTP port (default: 6556) |
+| `--setup` | Interactive MCP client configuration wizard |
+| `--update [version]` | Self-update from GitHub Releases (latest or pinned) |
+| `--version` | Print current version |
 
 ## MCP Tools
 
@@ -69,7 +97,7 @@ bun build --compile src/server.ts --outfile openui-mcp
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPENUI_SPEC_DIR` | `.openui` | Directory for spec files (relative to CWD or absolute) |
-| `PREVIEWER_PORT` | `3000` | Port for the previewer + API |
+| `PREVIEWER_PORT` | `6556` | Port for the previewer + API |
 
 ## Development
 
@@ -78,16 +106,23 @@ bun build --compile src/server.ts --outfile openui-mcp
 bun src/server.ts
 
 # Terminal 2: Previewer with hot-reload (optional)
-cd previewer && bun run dev   # Vite on :5173, proxies /api to :3000
+cd previewer && PREVIEWER_PORT=6556 bun run dev   # Vite on :5173, proxies /api to :6556
 ```
 
 ## Testing
 
 ```bash
-bun test
+bun test                # Unit + spec stress tests
+bunx playwright test    # E2E browser tests (starts server, verifies rendering)
 ```
 
-## Cross-Platform Builds
+## Building
+
+```bash
+bun run build   # Runs prebuild (previewer build + embed assets) then compiles binary
+```
+
+### Cross-Platform
 
 ```bash
 bun build --compile src/server.ts --target=bun-linux-x64 --outfile dist/openui-mcp-linux

@@ -28,17 +28,32 @@ Tools exposed:
 - `get_preview_url` — returns `http://localhost:{PREVIEWER_PORT}`
 
 HTTP server serves:
-- Static files from `previewer/dist/` (pre-built Vite SPA)
+- Static files from embedded assets (compiled binary) or `previewer/dist/` (dev mode)
 - `/api/spec` endpoint (JSON: `{ spec, lastModified }`)
 - SPA fallback (all routes → index.html)
 
-Dual mode:
-- **Dev mode**: serves from `previewer/dist/` on disk
-- **Compiled binary**: serves from `src/embedded-assets.ts` (generated, embedded in binary)
+Dual serving mode:
+- **Compiled binary**: `scripts/embed-assets.ts` inlines `previewer/dist/` into `src/embedded-assets.ts` as strings at build time. Single executable, no external files.
+- **Dev mode**: falls back to reading `previewer/dist/` from disk
 
 CLI flags:
 - `--port=N` — override previewer port
-- `--setup` — interactive MCP client configuration wizard
+- `--setup` — interactive MCP client configuration wizard (9 clients: OpenCode, Claude Code, Cursor, Windsurf, Gemini CLI, GitHub Copilot, Codex, Antigravity, Crush)
+- `--update [version]` — self-update from GitHub Releases (latest or pinned version)
+- `--version` — print current version
+
+## Source Files
+
+| File | Purpose |
+|------|---------|
+| `src/server.ts` | MCP server + HTTP server, main entry |
+| `src/setup.ts` | `--setup` wizard, writes MCP config for 9 clients |
+| `src/update.ts` | `--update` self-updater, `getVersion()`, `applyPendingUpdate()` |
+| `src/embedded-assets.ts` | Generated — inlined previewer dist (gitignored) |
+
+## Version
+
+Version constant lives in `src/update.ts` (`const VERSION = "x.y.z"`). `getVersion()` is used by the MCP server registration and `--version` flag.
 
 ## Environment Variables
 
@@ -46,7 +61,6 @@ CLI flags:
 |----------|---------|---------|
 | `OPENUI_SPEC_DIR` | `.openui` | Spec file directory (relative to CWD or absolute) |
 | `PREVIEWER_PORT` | `6556` | HTTP server port for previewer + API |
-| `PREVIEWER_DIST` | `../previewer/dist` (relative to server) | Override previewer static files path |
 
 ## Key Dependencies
 
@@ -63,7 +77,7 @@ bun install && cd previewer && bun install && bun run build && cd ..
 bun src/server.ts        # MCP server + HTTP on port 6556
 # OR for previewer hot-reload:
 bun src/server.ts &      # MCP server (background)
-cd previewer && bun run dev  # Vite dev server on 5173, proxies /api to 6556
+cd previewer && PREVIEWER_PORT=6556 bun run dev  # Vite dev server on 5173, proxies /api
 ```
 
 ## Testing
@@ -75,9 +89,7 @@ bun test   # Runs tests/server.test.ts + tests/specs.test.ts
 ## Building (compiled binary)
 
 ```bash
-cd previewer && bun run build && cd ..
-bun scripts/embed-assets.ts
-bun build --compile src/server.ts --outfile dist/openui-mcp
+bun run build   # prebuild (previewer build + embed assets) then bun build --compile
 ```
 
 Cross-compile: `--target=bun-linux-x64`, `--target=bun-darwin-arm64`, `--target=bun-windows-x64`

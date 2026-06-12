@@ -4,6 +4,9 @@ import { z } from "zod";
 import { mkdir, readFile, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, join } from "node:path";
+import { applyPendingUpdate, getVersion } from "./update.js";
+
+applyPendingUpdate();
 
 let embeddedAssets: Record<string, string> = {};
 try {
@@ -14,6 +17,19 @@ try {
 const args = process.argv.slice(2);
 const portFlag = args.find((a) => a.startsWith("--port="));
 const portArg = portFlag ? portFlag.split("=")[1] : undefined;
+
+if (args.includes("--version")) {
+  console.log(`openui-mcp v${getVersion()}`);
+  process.exit(0);
+}
+
+if (args.includes("--update")) {
+  const { runUpdate } = await import("./update.js");
+  const versionArg = args[args.indexOf("--update") + 1];
+  const version = versionArg && !versionArg.startsWith("--") ? versionArg : undefined;
+  await runUpdate(version);
+  process.exit(0);
+}
 
 const SPEC_DIR = resolve(process.env.OPENUI_SPEC_DIR || ".openui");
 const SPEC_FILE = resolve(SPEC_DIR, "spec.oui");
@@ -148,7 +164,7 @@ if (args.includes("--setup")) {
 
 const server = new McpServer({
   name: "openui-mcp",
-  version: "0.2.0",
+  version: getVersion(),
 });
 
 server.tool(

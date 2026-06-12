@@ -38,9 +38,9 @@ if ($CurrentPath -notlike "*$InstallDir*") {
 Write-Host ""
 Write-Host "  ✓ openui-mcp $Version installed successfully!"
 Write-Host ""
-Write-Host "  Next: Run 'openui-mcp --setup' to configure your MCP client."
-Write-Host "  Preview: http://localhost:6556 (default)"
+
+& "$InstallDir\openui-mcp.exe" --setup
+
 Write-Host ""
-Write-Host "  Or add manually to your MCP client config:"
-Write-Host "    command: $InstallDir\openui-mcp.exe"
+Write-Host "  Update later with: openui-mcp --update"
 Write-Host ""
