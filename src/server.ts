@@ -31,29 +31,33 @@ function startPreviewer() {
   if (previewerProcess) return;
 
   const command = IS_PRODUCTION ? "start" : "dev";
-  const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
 
-  previewerProcess = spawn(npxCmd, ["next", command, "-p", PREVIEWER_PORT], {
-    cwd: PREVIEWER_DIR,
-    stdio: "ignore",
-    env: {
-      ...process.env,
-      OPENUI_SPEC_FILE: SPEC_FILE,
-    },
-    detached: false,
-  });
+  try {
+    previewerProcess = spawn(`npx next ${command} -p ${PREVIEWER_PORT}`, [], {
+      cwd: PREVIEWER_DIR,
+      stdio: "ignore",
+      shell: true,
+      env: {
+        ...process.env,
+        OPENUI_SPEC_FILE: SPEC_FILE,
+      },
+      detached: false,
+    });
 
-  previewerProcess.on("error", (err) => {
-    console.error(`[openui-mcp] Failed to start previewer: ${err.message}`);
-    previewerProcess = null;
-  });
+    previewerProcess.on("error", (err) => {
+      console.error(`[openui-mcp] Failed to start previewer: ${err.message}`);
+      previewerProcess = null;
+    });
 
-  previewerProcess.on("exit", (code) => {
-    if (code !== null && code !== 0) {
-      console.error(`[openui-mcp] Previewer exited with code ${code}`);
-    }
-    previewerProcess = null;
-  });
+    previewerProcess.on("exit", (code) => {
+      if (code !== null && code !== 0) {
+        console.error(`[openui-mcp] Previewer exited with code ${code}`);
+      }
+      previewerProcess = null;
+    });
+  } catch (err) {
+    console.error(`[openui-mcp] Failed to spawn previewer: ${(err as Error).message}`);
+  }
 }
 
 function stopPreviewer() {
@@ -81,11 +85,14 @@ async function getComponents(): Promise<
   }> = [];
 
   for (const [name, def] of Object.entries(openuiLibrary.components || {})) {
-    const comp = def as { description?: string; props?: Record<string, unknown> };
+    const comp = def as {
+      description?: string;
+      props?: { shape?: Record<string, unknown> };
+    };
     components.push({
       name,
       description: comp.description || "",
-      props: comp.props ? Object.keys(comp.props) : [],
+      props: comp.props?.shape ? Object.keys(comp.props.shape) : [],
     });
   }
 

@@ -10,13 +10,15 @@
     "dev": "tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.0",
-    "@openuidev/react-ui": "^0.11.8",
-    "@openuidev/react-lang": "^0.2.6",
     "@openuidev/lang-core": "^0.2.5",
+    "@openuidev/react-lang": "^0.2.6",
+    "@openuidev/react-ui": "^0.11.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zod": "^3.25.0"
@@ -24,12 +26,18 @@
   "devDependencies": {
     "@types/node": "^20",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
   },
   "files": [
     "dist/",
     "previewer/"
   ],
-  "keywords": ["mcp", "openui", "generative-ui", "ai"],
+  "keywords": [
+    "mcp",
+    "openui",
+    "generative-ui",
+    "ai"
+  ],
   "license": "MIT"
 }
