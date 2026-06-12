@@ -1,0 +1,6 @@
+openui
+node_modules
+.next
+dist
+.openui
+.vscode

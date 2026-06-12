@@ -1,0 +1,35 @@
+{
+  "name": "@naadodimtr/openui-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for OpenUI - create structured web UI through AI chat",
+  "type": "module",
+  "bin": {
+    "openui-mcp": "./dist/server.js"
+  },
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "@openuidev/react-ui": "^0.11.8",
+    "@openuidev/react-lang": "^0.2.6",
+    "@openuidev/lang-core": "^0.2.5",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "files": [
+    "dist/",
+    "previewer/"
+  ],
+  "keywords": ["mcp", "openui", "generative-ui", "ai"],
+  "license": "MIT"
+}
