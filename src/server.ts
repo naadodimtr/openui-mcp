@@ -1,70 +1,80 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { spawn, ChildProcess } from "node:child_process";
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, readFile, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { resolve, join } from "node:path";
 
 const SPEC_DIR = resolve(process.env.OPENUI_SPEC_DIR || ".openui");
 const SPEC_FILE = resolve(SPEC_DIR, "spec.oui");
-const PREVIEWER_PORT = process.env.PREVIEWER_PORT || "3000";
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-
-const PREVIEWER_DIR = resolve(__dirname, "..", "previewer");
-
-let previewerProcess: ChildProcess | null = null;
+const PREVIEWER_PORT = parseInt(process.env.PREVIEWER_PORT || "3000", 10);
+const PREVIEWER_DIST = resolve(import.meta.dir, "..", "previewer", "dist");
 
 async function ensureSpecDir() {
   if (!existsSync(SPEC_DIR)) {
     await mkdir(SPEC_DIR, { recursive: true });
   }
   if (!existsSync(SPEC_FILE)) {
-    await writeFile(SPEC_FILE, "", "utf-8");
+    await Bun.write(SPEC_FILE, "");
   }
 }
 
-function startPreviewer() {
-  if (previewerProcess) return;
+function getMimeType(path: string): string {
+  if (path.endsWith(".html")) return "text/html";
+  if (path.endsWith(".js")) return "application/javascript";
+  if (path.endsWith(".css")) return "text/css";
+  if (path.endsWith(".json")) return "application/json";
+  if (path.endsWith(".svg")) return "image/svg+xml";
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".woff2")) return "font/woff2";
+  return "application/octet-stream";
+}
 
-  const command = IS_PRODUCTION ? "start" : "dev";
+function startHttpServer() {
+  Bun.serve({
+    port: PREVIEWER_PORT,
+    async fetch(req) {
+      const url = new URL(req.url);
 
-  try {
-    previewerProcess = spawn(`npx next ${command} -p ${PREVIEWER_PORT}`, [], {
-      cwd: PREVIEWER_DIR,
-      stdio: "ignore",
-      shell: true,
-      env: {
-        ...process.env,
-        OPENUI_SPEC_FILE: SPEC_FILE,
-      },
-      detached: false,
-    });
-
-    previewerProcess.on("error", (err) => {
-      console.error(`[openui-mcp] Failed to start previewer: ${err.message}`);
-      previewerProcess = null;
-    });
-
-    previewerProcess.on("exit", (code) => {
-      if (code !== null && code !== 0) {
-        console.error(`[openui-mcp] Previewer exited with code ${code}`);
+      if (url.pathname === "/api/spec") {
+        try {
+          if (!existsSync(SPEC_FILE)) {
+            return Response.json({ spec: "", lastModified: 0 });
+          }
+          const [content, stats] = await Promise.all([
+            readFile(SPEC_FILE, "utf-8"),
+            stat(SPEC_FILE),
+          ]);
+          return Response.json({ spec: content, lastModified: stats.mtimeMs });
+        } catch {
+          return Response.json({ spec: "", lastModified: 0 });
+        }
       }
-      previewerProcess = null;
-    });
-  } catch (err) {
-    console.error(`[openui-mcp] Failed to spawn previewer: ${(err as Error).message}`);
-  }
-}
 
-function stopPreviewer() {
-  if (previewerProcess) {
-    previewerProcess.kill();
-    previewerProcess = null;
-  }
+      let filePath = url.pathname === "/" ? "/index.html" : url.pathname;
+      const fullPath = join(PREVIEWER_DIST, filePath);
+
+      if (!fullPath.startsWith(PREVIEWER_DIST)) {
+        return new Response("Forbidden", { status: 403 });
+      }
+
+      const file = Bun.file(fullPath);
+      if (await file.exists()) {
+        return new Response(file, {
+          headers: { "Content-Type": getMimeType(fullPath) },
+        });
+      }
+
+      const indexFile = Bun.file(join(PREVIEWER_DIST, "index.html"));
+      if (await indexFile.exists()) {
+        return new Response(indexFile, {
+          headers: { "Content-Type": "text/html" },
+        });
+      }
+
+      return new Response("Not Found", { status: 404 });
+    },
+  });
 }
 
 async function getSystemPrompt(): Promise<string> {
@@ -101,7 +111,7 @@ async function getComponents(): Promise<
 
 const server = new McpServer({
   name: "openui-mcp",
-  version: "0.1.0",
+  version: "0.2.0",
 });
 
 server.tool(
@@ -132,7 +142,7 @@ server.tool(
   { spec: z.string().describe("The full OpenUI Lang spec to render") },
   async ({ spec }) => {
     await ensureSpecDir();
-    await writeFile(SPEC_FILE, spec, "utf-8");
+    await Bun.write(SPEC_FILE, spec);
     return {
       content: [
         {
@@ -173,28 +183,13 @@ server.tool(
 
 async function main() {
   await ensureSpecDir();
-  startPreviewer();
+  startHttpServer();
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-
-  process.on("SIGINT", () => {
-    stopPreviewer();
-    process.exit(0);
-  });
-
-  process.on("SIGTERM", () => {
-    stopPreviewer();
-    process.exit(0);
-  });
-
-  process.on("exit", () => {
-    stopPreviewer();
-  });
 }
 
 main().catch((err) => {
   console.error(`[openui-mcp] Fatal error: ${err.message}`);
-  stopPreviewer();
   process.exit(1);
 });

@@ -1,43 +1,28 @@
 {
   "name": "@naadodimtr/openui-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server for OpenUI - create structured web UI through AI chat",
   "type": "module",
-  "bin": {
-    "openui-mcp": "./dist/server.js"
-  },
   "scripts": {
-    "dev": "tsx src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "prepublishOnly": "npm run build"
+    "dev": "bun src/server.ts",
+    "test": "bun test",
+    "build": "bun build --compile src/server.ts --outfile dist/openui-mcp",
+    "build:linux": "bun build --compile src/server.ts --target=bun-linux-x64 --outfile dist/openui-mcp-linux",
+    "build:mac": "bun build --compile src/server.ts --target=bun-darwin-arm64 --outfile dist/openui-mcp-darwin",
+    "build:win": "bun build --compile src/server.ts --target=bun-windows-x64 --outfile dist/openui-mcp.exe"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.0",
-    "@openuidev/lang-core": "^0.2.5",
-    "@openuidev/react-lang": "^0.2.6",
     "@openuidev/react-ui": "^0.11.8",
+    "@openuidev/react-lang": "^0.2.6",
+    "@openuidev/lang-core": "^0.2.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0",
-    "vitest": "^4.1.8"
+    "@types/bun": "latest"
   },
-  "files": [
-    "dist/",
-    "previewer/"
-  ],
-  "keywords": [
-    "mcp",
-    "openui",
-    "generative-ui",
-    "ai"
-  ],
+  "keywords": ["mcp", "openui", "generative-ui", "ai"],
   "license": "MIT"
 }

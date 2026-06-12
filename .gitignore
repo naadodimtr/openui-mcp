@@ -1,6 +1,9 @@
 openui
 node_modules
-.next
-dist
 .openui
+dist
+previewer/dist
+.test-openui
+.test-specs
+bun.lockb
 .vscode

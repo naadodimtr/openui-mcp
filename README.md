@@ -5,65 +5,92 @@ MCP server for creating structured web UI through AI chat. Connects to any MCP c
 ## Architecture
 
 ```
-MCP Client (opencode)  →  MCP Server (stdio)  →  writes .openui/spec.oui  →  Previewer (polls file)  →  browser
+MCP Client (opencode)  →  MCP Server (stdio + HTTP)  →  writes .openui/spec.oui
+                                                      →  serves previewer SPA + /api/spec
+                                                              ↓
+                                                      Browser polls /api/spec → renders UI
 ```
 
-## Setup
+## Quick Start
 
 ```bash
-git clone https://github.com/naadodimtr/openui-mcp
-cd openui-mcp
-npm install
-cd previewer && npm install && cd ..
+bun install
+cd previewer && bun install && bun run build && cd ..
+bun src/server.ts   # MCP server + previewer on http://localhost:3000
 ```
 
-## Usage
+## MCP Client Configuration
 
-### Development
-
-Add to your MCP client config (e.g. opencode.json):
+### opencode
 
 ```json
 {
   "mcpServers": {
     "openui": {
-      "command": "npx",
-      "args": ["tsx", "src/server.ts"],
+      "type": "local",
+      "command": ["bun", "src/server.ts"],
       "cwd": "/path/to/openui-mcp",
-      "env": {
-        "PREVIEWER_PORT": "3000",
-        "OPENUI_SPEC_DIR": ".openui"
-      }
+      "enabled": true
     }
   }
 }
 ```
 
-The server auto-starts the previewer at `http://localhost:3000`.
+### Compiled Binary (no Bun required)
 
-### MCP Tools
+```bash
+bun build --compile src/server.ts --outfile openui-mcp
+```
+
+```json
+{
+  "mcpServers": {
+    "openui": {
+      "type": "local",
+      "command": ["/path/to/openui-mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+## MCP Tools
 
 | Tool | Description |
 |------|-------------|
 | `get_system_prompt` | Returns the full system prompt for generating valid OpenUI Lang specs |
 | `get_components` | Returns available component names, descriptions, and prop names |
-| `update_spec` | Writes a spec to the previewer (triggers re-render) |
+| `update_spec` | Writes a spec to the previewer (triggers re-render in browser) |
 | `get_current_spec` | Reads the current spec being rendered |
 | `get_preview_url` | Returns the previewer URL |
 
-### Environment Variables
+## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPENUI_SPEC_DIR` | `.openui` | Directory for spec files (relative to CWD or absolute) |
-| `PREVIEWER_PORT` | `3000` | Port for the previewer web app |
-| `NODE_ENV` | — | Set to `production` to use `next start` instead of `next dev` |
+| `PREVIEWER_PORT` | `3000` | Port for the previewer + API |
 
-## How It Works
+## Development
 
-1. MCP client calls `get_system_prompt` → LLM learns OpenUI Lang syntax
-2. User describes desired UI in chat
-3. LLM generates OpenUI Lang spec, client calls `update_spec`
-4. MCP server writes spec to `.openui/spec.oui`
-5. Previewer polls the file every 500ms, detects change, re-renders with `<Renderer>`
-6. User sees live UI in browser, iterates via chat
+```bash
+# Terminal 1: MCP server (serves API + pre-built previewer)
+bun src/server.ts
+
+# Terminal 2: Previewer with hot-reload (optional)
+cd previewer && bun run dev   # Vite on :5173, proxies /api to :3000
+```
+
+## Testing
+
+```bash
+bun test
+```
+
+## Cross-Platform Builds
+
+```bash
+bun build --compile src/server.ts --target=bun-linux-x64 --outfile dist/openui-mcp-linux
+bun build --compile src/server.ts --target=bun-darwin-arm64 --outfile dist/openui-mcp-darwin
+bun build --compile src/server.ts --target=bun-windows-x64 --outfile dist/openui-mcp.exe
+```

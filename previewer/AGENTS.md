@@ -1,29 +1,30 @@
 # Previewer
 
-Next.js 16 App Router application. Polls a spec file and renders OpenUI components in the browser.
+Vite + React SPA. Polls the MCP server's `/api/spec` endpoint and renders OpenUI components.
 
 ## Data Flow
 
 ```
-MCP server writes .openui/spec.oui → API route reads file → page.tsx polls /api/spec (500ms) → <Renderer> re-renders
+MCP server writes .openui/spec.oui → Bun.serve() serves /api/spec → App.tsx polls (500ms) → <Renderer> re-renders
 ```
 
 ## Key Files
 
-- `src/app/page.tsx` — Client component. Polls `/api/spec`, renders `<Renderer response={spec} library={openuiLibrary} />`. Shows placeholder when empty.
-- `src/app/api/spec/route.ts` — GET endpoint. Reads `OPENUI_SPEC_FILE` env var path, returns `{ spec, lastModified }`. Force-dynamic (no caching).
-- `src/library.ts` — Re-exports `openuiLibrary` and `openuiPromptOptions` from `@openuidev/react-ui/genui-lib`.
-- `src/app/layout.tsx` — Minimal HTML shell.
+- `src/App.tsx` — Polls `/api/spec`, renders `<Renderer response={spec} library={openuiLibrary} />`. Shows placeholder when empty.
+- `src/main.tsx` — React entry point (`createRoot`).
+- `index.html` — SPA shell.
+- `vite.config.ts` — React plugin + dev proxy (`/api` → MCP server on port 3000).
 
-## Environment
+## Development
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `OPENUI_SPEC_FILE` | `.openui/spec.oui` | Absolute path to spec file (set by MCP server when spawning) |
+```bash
+bun run dev    # Vite dev server on 5173, proxies /api to port 3000
+bun run build  # Production build → dist/
+```
 
 ## Styling
 
-Tailwind CSS v4 via `@tailwindcss/postcss`. OpenUI component styles imported via:
+OpenUI component styles imported directly in App.tsx:
 ```
 @openuidev/react-ui/components.css
 @openuidev/react-ui/styles/index.css
@@ -33,5 +34,6 @@ Tailwind CSS v4 via `@tailwindcss/postcss`. OpenUI component styles imported via
 
 - State resets on every spec change (no persistence)
 - Empty spec → "Waiting for spec..." placeholder
-- No streaming support — full spec re-render on each poll
-- `dynamic = "force-dynamic"` on API route prevents Next.js caching
+- No streaming — full spec re-render on each poll
+- In production: served as static files by MCP server's Bun.serve()
+- In development: Vite dev server with HMR, proxies API to MCP server

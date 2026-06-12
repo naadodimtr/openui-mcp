@@ -5,33 +5,39 @@ MCP server + live previewer for generating structured web UI through AI chat.
 ## Architecture
 
 ```
-MCP Client (stdio) → src/server.ts → writes .openui/spec.oui → previewer polls → renders in browser
+MCP Client (stdio) → src/server.ts → writes .openui/spec.oui
+                                    → Bun.serve() on PREVIEWER_PORT
+                                       ├── GET / → serves previewer SPA
+                                       └── GET /api/spec → returns spec JSON
+Previewer SPA (polls /api/spec every 500ms) → <Renderer> renders in browser
 ```
 
-Two independent packages:
-- Root: MCP server (TypeScript, Node.js, stdio transport)
-- `previewer/`: Next.js 16 app that renders OpenUI specs
+Two packages:
+- Root: MCP server (TypeScript, Bun runtime, stdio + HTTP)
+- `previewer/`: Vite + React SPA that renders OpenUI specs
 
 ## MCP Server (`src/server.ts`)
 
-Single-file server using `@modelcontextprotocol/sdk`. Stdio transport.
+Single-file server using `@modelcontextprotocol/sdk`. Stdio transport + `Bun.serve()` HTTP server.
 
 Tools exposed:
 - `get_system_prompt` — dynamically generated from `openuiLibrary.prompt()`
-- `get_components` — component name/description/props summary
-- `update_spec` — writes to `SPEC_DIR/spec.oui`, triggers previewer re-render
+- `get_components` — component name/description/props summary (reads from Zod schema `.shape`)
+- `update_spec` — writes to `SPEC_DIR/spec.oui` via `Bun.write()`
 - `get_current_spec` — reads current spec file
 - `get_preview_url` — returns `http://localhost:{PREVIEWER_PORT}`
 
-Auto-spawns previewer as child process on startup. Kills on exit.
+HTTP server serves:
+- Static files from `previewer/dist/` (pre-built Vite SPA)
+- `/api/spec` endpoint (JSON: `{ spec, lastModified }`)
+- SPA fallback (all routes → index.html)
 
 ## Environment Variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `OPENUI_SPEC_DIR` | `.openui` | Spec file directory (relative to CWD or absolute) |
-| `PREVIEWER_PORT` | `3000` | Previewer port |
-| `NODE_ENV` | — | `production` → `next start`; otherwise `next dev` |
+| `PREVIEWER_PORT` | `3000` | HTTP server port for previewer + API |
 
 ## Key Dependencies
 
@@ -39,24 +45,37 @@ Auto-spawns previewer as child process on startup. Kills on exit.
 - `@openuidev/react-ui` — component library + prompt generation
 - `@openuidev/react-lang` — OpenUI Lang renderer
 - `@openuidev/lang-core` — parser, runtime, validation
-
-React is a dependency only because `@openuidev/react-ui` requires it for component metadata imports. No rendering happens server-side.
+- `react`, `react-dom` — required by `@openuidev/react-ui` for component metadata imports
 
 ## Development
 
 ```bash
-npm install && cd previewer && npm install
-# MCP server: npx tsx src/server.ts
-# Previewer standalone: OPENUI_SPEC_FILE=/abs/path npm run dev
+bun install && cd previewer && bun install && bun run build && cd ..
+bun src/server.ts        # MCP server + HTTP on port 3000
+# OR for previewer hot-reload:
+bun src/server.ts &      # MCP server (background)
+cd previewer && bun run dev  # Vite dev server on 5173, proxies /api to 3000
 ```
 
-## Publishing
+## Testing
 
-Package name: `@naadodimtr/openui-mcp`. The `bin` entry points to `dist/server.js`. Run `npm run build` (tsc) before publish. The `files` field includes `dist/` and `previewer/`.
+```bash
+bun test   # Runs tests/server.test.ts + tests/specs.test.ts
+```
+
+## Building (compiled binary)
+
+```bash
+cd previewer && bun run build && cd ..
+bun build --compile src/server.ts --outfile dist/openui-mcp
+```
+
+Cross-compile: `--target=bun-linux-x64`, `--target=bun-darwin-arm64`, `--target=bun-windows-x64`
 
 ## Conventions
 
-- TypeScript strict mode, ES2022 target, ESM (`"type": "module"`)
+- Bun runtime, TypeScript, ESM (`"type": "module"`)
 - No comments in code
 - Pin OpenUI package versions with `^` semver
-- `openui/` directory is gitignored reference-only clone (not a dependency)
+- `openui/` directory is gitignored reference-only clone
+- Tests use `bun:test` (built-in test runner)

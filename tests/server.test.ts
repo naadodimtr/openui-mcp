@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-const TEST_SPEC_DIR = resolve(import.meta.dirname, "..", ".test-openui");
+const TEST_SPEC_DIR = resolve(import.meta.dir, "..", ".test-openui");
 const TEST_SPEC_FILE = resolve(TEST_SPEC_DIR, "spec.oui");
 
 describe("MCP Server - File I/O", () => {
@@ -65,10 +65,6 @@ describe("MCP Server - File I/O", () => {
 });
 
 describe("MCP Server - System Prompt", () => {
-  beforeAll(async () => {
-    await import("@openuidev/react-ui/genui-lib");
-  }, 30000);
-
   it("generates a non-empty system prompt", async () => {
     const { openuiLibrary, openuiPromptOptions } = await import(
       "@openuidev/react-ui/genui-lib"
@@ -76,7 +72,7 @@ describe("MCP Server - System Prompt", () => {
     const prompt = openuiLibrary.prompt(openuiPromptOptions);
     expect(prompt).toBeDefined();
     expect(prompt.length).toBeGreaterThan(1000);
-  });
+  }, 30000);
 
   it("system prompt contains key syntax rules", async () => {
     const { openuiLibrary, openuiPromptOptions } = await import(
@@ -159,7 +155,7 @@ describe("MCP Server - Component Library", () => {
       "RadialChart", "SingleStackedBarChart",
     ];
     for (const name of chartNames) {
-      expect(comps[name], `${name} should exist`).toBeDefined();
+      expect(comps[name]).toBeDefined();
     }
   });
 
@@ -172,7 +168,7 @@ describe("MCP Server - Component Library", () => {
       "CheckBoxGroup", "RadioGroup", "Button", "Buttons",
     ];
     for (const name of formNames) {
-      expect(comps[name], `${name} should exist`).toBeDefined();
+      expect(comps[name]).toBeDefined();
     }
   });
 });
