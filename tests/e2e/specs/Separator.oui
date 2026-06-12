@@ -1,0 +1,1 @@
+root = Stack([TextContent("Above"), Separator(), TextContent("Below")])

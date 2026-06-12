@@ -1,0 +1,2 @@
+root = Stack([s])
+s = SwitchGroup("prefs", [SwitchItem("Option A", "Description", "a", true), SwitchItem("Option B", "Description", "b")])

@@ -1,0 +1,2 @@
+root = Stack([f])
+f = Form("test", Buttons([Button("Go")]), [FormControl("Name", Input("name", "Enter"))])

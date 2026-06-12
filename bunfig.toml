@@ -1,0 +1,3 @@
+[test]
+root = "./tests"
+ignore = ["e2e/**"]

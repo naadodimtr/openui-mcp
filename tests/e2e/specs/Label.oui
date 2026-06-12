@@ -1,0 +1,2 @@
+root = Stack([l])
+l = Label("Test Label")

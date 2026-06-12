@@ -1,0 +1,2 @@
+root = Stack([c])
+c = BarChart(["A", "B"], [Series("S1", [10, 20])])

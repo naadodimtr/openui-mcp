@@ -1,0 +1,2 @@
+root = Stack([c])
+c = TextCallout("warning", "Warning", "Be careful")

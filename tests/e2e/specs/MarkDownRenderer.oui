@@ -1,0 +1,2 @@
+root = Stack([md])
+md = MarkDownRenderer("**Bold** and *italic*", "card")

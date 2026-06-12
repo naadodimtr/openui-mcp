@@ -1,0 +1,2 @@
+root = Stack([c])
+c = PieChart(["Slice1", "Slice2"], [60, 40], "donut")

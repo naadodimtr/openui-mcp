@@ -1,0 +1,2 @@
+root = Stack([c])
+c = RadialChart(["A", "B"], [70, 30])

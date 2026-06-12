@@ -1,0 +1,2 @@
+root = Stack([c])
+c = CodeBlock("javascript", "const x = 1;")
