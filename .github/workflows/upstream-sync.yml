@@ -1,0 +1,80 @@
+name: Upstream Sync
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Check for new versions
+        id: check
+        run: |
+          CURRENT=$(cat package.json | bun -e "console.log(JSON.parse(await Bun.stdin.text()).dependencies['@openuidev/react-ui'].replace('^', ''))")
+          LATEST=$(npm view @openuidev/react-ui version)
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+          if [ "$CURRENT" != "$LATEST" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update versions
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          bun add @openuidev/react-ui@latest @openuidev/react-lang@latest @openuidev/lang-core@latest
+          cd previewer && bun add @openuidev/react-ui@latest @openuidev/react-lang@latest
+
+      - name: Install previewer deps
+        if: steps.check.outputs.changed == 'true'
+        run: cd previewer && bun install
+
+      - name: Build previewer
+        if: steps.check.outputs.changed == 'true'
+        run: cd previewer && bun run build
+
+      - name: Generate E2E specs from library
+        if: steps.check.outputs.changed == 'true'
+        run: bun scripts/generate-e2e-specs.ts
+
+      - name: Run unit tests
+        if: steps.check.outputs.changed == 'true'
+        run: bun test
+
+      - name: Install Playwright
+        if: steps.check.outputs.changed == 'true'
+        run: bunx playwright install chromium
+
+      - name: Embed assets
+        if: steps.check.outputs.changed == 'true'
+        run: bun scripts/embed-assets.ts
+
+      - name: Run E2E tests
+        if: steps.check.outputs.changed == 'true'
+        run: bunx playwright test
+
+      - name: Create PR
+        if: steps.check.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "chore: bump @openuidev packages to ${{ steps.check.outputs.latest }}"
+          branch: "auto/openui-${{ steps.check.outputs.latest }}"
+          commit-message: "chore: bump @openuidev packages to ${{ steps.check.outputs.latest }}"
+          body: |
+            Automated update from upstream OpenUI release.
+
+            - `@openuidev/react-ui`: ${{ steps.check.outputs.current }} → ${{ steps.check.outputs.latest }}
+            - Unit tests: ✅
+            - E2E tests: ✅
+            - Previewer build: ✅
+
+            Generated E2E specs updated for any new/changed components.

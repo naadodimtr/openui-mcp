@@ -1,0 +1,2 @@
+root = Stack([c])
+c = HorizontalBarChart(["A", "B"], [Series("S1", [30, 50])])

@@ -1,0 +1,2 @@
+root = Stack([t])
+t = Table([Col("A", ["x", "y"]), Col("B", [1, 2], "number")])

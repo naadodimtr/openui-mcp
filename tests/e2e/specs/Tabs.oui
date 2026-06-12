@@ -1,0 +1,2 @@
+root = Stack([t])
+t = Tabs([TabItem("a", "Tab A", [TextContent("Content A")]), TabItem("b", "Tab B", [TextContent("Content B")])])

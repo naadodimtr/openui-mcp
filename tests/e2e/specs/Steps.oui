@@ -1,0 +1,2 @@
+root = Stack([s])
+s = Steps([StepsItem("Step 1", "Do this"), StepsItem("Step 2", "Then that")])

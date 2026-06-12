@@ -1,0 +1,2 @@
+root = Stack([c])
+c = AreaChart(["A", "B"], [Series("S1", [10, 20])], "natural")

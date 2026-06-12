@@ -1,0 +1,2 @@
+root = Stack([c])
+c = LineChart(["A", "B", "C"], [Series("S1", [10, 20, 15])], "natural")

@@ -1,0 +1,2 @@
+root = Stack([c])
+c = RadarChart(["X", "Y", "Z"], [Series("S1", [80, 60, 90])])

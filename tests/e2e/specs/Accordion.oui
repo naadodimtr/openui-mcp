@@ -1,0 +1,2 @@
+root = Stack([a])
+a = Accordion([AccordionItem("s1", "Section 1", [TextContent("Content 1")]), AccordionItem("s2", "Section 2", [TextContent("Content 2")])])

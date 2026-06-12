@@ -1,0 +1,2 @@
+root = Stack([b])
+b = Buttons([Button("Click Me", Action([@ToAssistant("clicked")]), "primary")])

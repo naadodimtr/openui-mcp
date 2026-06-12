@@ -5,10 +5,24 @@ import { mkdir, readFile, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 
+let embeddedAssets: Record<string, string> = {};
+try {
+  const mod = await import("./embedded-assets.js");
+  embeddedAssets = mod.default;
+} catch {}
+
+const args = process.argv.slice(2);
+const portFlag = args.find((a) => a.startsWith("--port="));
+const portArg = portFlag ? portFlag.split("=")[1] : undefined;
+
 const SPEC_DIR = resolve(process.env.OPENUI_SPEC_DIR || ".openui");
 const SPEC_FILE = resolve(SPEC_DIR, "spec.oui");
-const PREVIEWER_PORT = parseInt(process.env.PREVIEWER_PORT || "3000", 10);
-const PREVIEWER_DIST = resolve(import.meta.dir, "..", "previewer", "dist");
+const PREVIEWER_PORT = parseInt(portArg || process.env.PREVIEWER_PORT || "6556", 10);
+const PREVIEWER_DIST = process.env.PREVIEWER_DIST
+  ? resolve(process.env.PREVIEWER_DIST)
+  : resolve(import.meta.dir, "..", "previewer", "dist");
+
+const HAS_EMBEDDED = Object.keys(embeddedAssets).length > 0;
 
 async function ensureSpecDir() {
   if (!existsSync(SPEC_DIR)) {
@@ -28,6 +42,30 @@ function getMimeType(path: string): string {
   if (path.endsWith(".png")) return "image/png";
   if (path.endsWith(".woff2")) return "font/woff2";
   return "application/octet-stream";
+}
+
+function serveEmbedded(filePath: string): Response | null {
+  const content = embeddedAssets[filePath];
+  if (content !== undefined) {
+    return new Response(content, {
+      headers: { "Content-Type": getMimeType(filePath) },
+    });
+  }
+  return null;
+}
+
+async function serveDisk(filePath: string): Promise<Response | null> {
+  const fullPath = join(PREVIEWER_DIST, filePath);
+  if (!fullPath.startsWith(PREVIEWER_DIST)) {
+    return new Response("Forbidden", { status: 403 });
+  }
+  const file = Bun.file(fullPath);
+  if (await file.exists()) {
+    return new Response(file, {
+      headers: { "Content-Type": getMimeType(fullPath) },
+    });
+  }
+  return null;
 }
 
 function startHttpServer() {
@@ -51,25 +89,18 @@ function startHttpServer() {
         }
       }
 
-      let filePath = url.pathname === "/" ? "/index.html" : url.pathname;
-      const fullPath = join(PREVIEWER_DIST, filePath);
+      const filePath = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
 
-      if (!fullPath.startsWith(PREVIEWER_DIST)) {
-        return new Response("Forbidden", { status: 403 });
-      }
-
-      const file = Bun.file(fullPath);
-      if (await file.exists()) {
-        return new Response(file, {
-          headers: { "Content-Type": getMimeType(fullPath) },
-        });
-      }
-
-      const indexFile = Bun.file(join(PREVIEWER_DIST, "index.html"));
-      if (await indexFile.exists()) {
-        return new Response(indexFile, {
-          headers: { "Content-Type": "text/html" },
-        });
+      if (HAS_EMBEDDED) {
+        const res = serveEmbedded(filePath);
+        if (res) return res;
+        const fallback = serveEmbedded("index.html");
+        if (fallback) return fallback;
+      } else {
+        const res = await serveDisk(filePath);
+        if (res) return res;
+        const fallback = await serveDisk("index.html");
+        if (fallback) return fallback;
       }
 
       return new Response("Not Found", { status: 404 });
@@ -107,6 +138,12 @@ async function getComponents(): Promise<
   }
 
   return components;
+}
+
+if (args.includes("--setup")) {
+  const { runSetup } = await import("./setup.js");
+  await runSetup(PREVIEWER_PORT);
+  process.exit(0);
 }
 
 const server = new McpServer({
@@ -184,7 +221,6 @@ server.tool(
 async function main() {
   await ensureSpecDir();
   startHttpServer();
-
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

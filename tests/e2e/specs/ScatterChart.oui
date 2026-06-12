@@ -1,0 +1,2 @@
+root = Stack([c])
+c = ScatterChart([ScatterSeries("Data", [Point(1, 2), Point(3, 4)])])

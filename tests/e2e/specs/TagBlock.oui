@@ -1,0 +1,2 @@
+root = Stack([t])
+t = TagBlock(["tag1", "tag2", "tag3"])

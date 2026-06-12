@@ -1,0 +1,2 @@
+root = Stack([c])
+c = SingleStackedBarChart(["A", "B", "C"], [40, 35, 25])

@@ -3,7 +3,10 @@ node_modules
 .openui
 dist
 previewer/dist
+src/embedded-assets.ts
 .test-openui
 .test-specs
+.e2e-openui
+test-results
 bun.lockb
 .vscode
