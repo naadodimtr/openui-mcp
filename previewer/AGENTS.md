@@ -10,10 +10,12 @@ MCP server writes .openui/spec.oui → Bun.serve() serves /api/spec → App.tsx 
 
 ## Key Files
 
-- `src/App.tsx` — Polls `/api/spec`, renders `<Renderer response={spec} library={openuiLibrary} />`. Shows placeholder when empty.
+- `src/App.tsx` — Polls `/api/spec`, renders `<Renderer>` inside `<ErrorBoundary>`. Shows placeholder when empty.
+- `src/ErrorBoundary.tsx` — React error boundary. On render failure, shows error message + stack trace + raw spec text. Auto-resets when spec changes.
+- `src/libraries/openui-default.ts` — Re-exports `openuiLibrary` + CSS imports. Centralized for future library swapping.
 - `src/main.tsx` — React entry point (`createRoot`).
 - `index.html` — SPA shell.
-- `vite.config.ts` — React plugin + dev proxy (`/api` → MCP server). Reads `PREVIEWER_PORT` env var, falls back to 3000. Set `PREVIEWER_PORT=6556` to match MCP server default.
+- `vite.config.ts` — React plugin + dev proxy (`/api` → MCP server). Reads `PREVIEWER_PORT` env var, falls back to 6556.
 
 ## Development
 
@@ -34,6 +36,7 @@ OpenUI component styles imported directly in App.tsx:
 
 - State resets on every spec change (no persistence)
 - Empty spec → "Waiting for spec..." placeholder
+- Render errors → ErrorBoundary catches, displays error + raw spec text
 - No streaming — full spec re-render on each poll
 - In production: embedded in compiled binary via `scripts/embed-assets.ts`
 - In development: Vite dev server with HMR, proxies API to MCP server

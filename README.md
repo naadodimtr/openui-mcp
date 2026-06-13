@@ -65,6 +65,10 @@ Works with any MCP client that supports stdio transport. Tested with:
 | `update_spec` | Writes a spec to the previewer (triggers re-render in browser) |
 | `get_current_spec` | Reads the current spec being rendered |
 | `get_preview_url` | Returns the previewer URL |
+| `validate_spec` | Validates a spec without writing — returns parse errors, unresolved refs, orphaned statements |
+| `list_libraries` | Lists available component library profiles |
+
+`get_system_prompt`, `get_components`, and `validate_spec` accept an optional `libraryId` parameter (default: `openui-default`).
 
 ## CLI
 

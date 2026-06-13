@@ -1,9 +1,7 @@
-import "@openuidev/react-ui/components.css";
-import "@openuidev/react-ui/styles/index.css";
-
 import { Renderer } from "@openuidev/react-lang";
-import { openuiLibrary } from "@openuidev/react-ui/genui-lib";
+import { openuiLibrary } from "./libraries/openui-default";
 import { useState, useEffect, useRef } from "react";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 export default function App() {
   const [spec, setSpec] = useState("");
@@ -44,8 +42,10 @@ export default function App() {
   }
 
   return (
-    <div style={{ height: "100vh", width: "100vw", overflow: "auto", background: "#fff", padding: "1rem" }}>
-      <Renderer response={spec} library={openuiLibrary} />
-    </div>
+    <ErrorBoundary spec={spec}>
+      <div style={{ height: "100vh", width: "100vw", overflow: "auto", background: "#fff", padding: "1rem" }}>
+        <Renderer response={spec} library={openuiLibrary} />
+      </div>
+    </ErrorBoundary>
   );
 }

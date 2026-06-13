@@ -21,13 +21,15 @@ Two packages:
 Single-file server using `@modelcontextprotocol/sdk`. Stdio transport + `Bun.serve()` HTTP server.
 
 Tools exposed:
-- `get_system_prompt` — dynamically generated from `openuiLibrary.prompt()`
-- `get_components` — component name/description/props summary (reads from Zod schema `.shape`)
+- `get_system_prompt` — dynamically generated via library profile. Optional `libraryId` param.
+- `get_components` — component name/description/props summary. Optional `libraryId` param.
 - `update_spec` — writes to `SPEC_DIR/spec.oui` via `Bun.write()`
 - `get_current_spec` — reads current spec file
 - `get_preview_url` — returns `http://localhost:{PREVIEWER_PORT}`
+- `validate_spec` — parses spec with `createParser` from `@openuidev/lang-core`, returns errors/unresolved/orphaned without writing. Optional `libraryId` param.
+- `list_libraries` — returns available library profile IDs, names, and descriptions
 
-HTTP server serves:
+HTTP server (binds to `127.0.0.1`) serves:
 - Static files from embedded assets (compiled binary) or `previewer/dist/` (dev mode)
 - `/api/spec` endpoint (JSON: `{ spec, lastModified }`)
 - SPA fallback (all routes → index.html)
@@ -42,11 +44,30 @@ CLI flags:
 - `--update [version]` — self-update from GitHub Releases (latest or pinned version)
 - `--version` — print current version
 
+## Library Profiles
+
+Abstraction layer for swapping component libraries / design systems.
+
+```
+src/libraries/
+  index.ts            — registry: registerLibrary(), getProfile(), listProfiles()
+  openui-default.ts   — wraps @openuidev/react-ui/genui-lib (prompt, components, validation)
+
+previewer/src/libraries/
+  openui-default.ts   — re-exports openuiLibrary + CSS for renderer
+```
+
+Interface: `LibraryProfile { id, name, description, getPrompt(), getComponents(), validate() }`
+
+Validation uses `createParser()` + `enrichErrors()` from `@openuidev/lang-core`.
+
 ## Source Files
 
 | File | Purpose |
 |------|---------|
 | `src/server.ts` | MCP server + HTTP server, main entry |
+| `src/libraries/index.ts` | Library profile registry |
+| `src/libraries/openui-default.ts` | Default OpenUI library profile |
 | `src/setup.ts` | `--setup` wizard, writes MCP config for 9 clients |
 | `src/update.ts` | `--update` self-updater, `getVersion()`, `applyPendingUpdate()` |
 | `src/embedded-assets.ts` | Generated — inlined previewer dist (gitignored) |

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { getProfile, listProfiles } from "../src/libraries/index.js";
 
 const TEST_SPEC_DIR = resolve(import.meta.dir, "..", ".test-openui");
 const TEST_SPEC_FILE = resolve(TEST_SPEC_DIR, "spec.oui");
@@ -170,5 +171,95 @@ describe("MCP Server - Component Library", () => {
     for (const name of formNames) {
       expect(comps[name]).toBeDefined();
     }
+  });
+});
+
+describe("Library Profiles", () => {
+  it("lists available profiles", () => {
+    const profiles = listProfiles();
+    expect(profiles.length).toBeGreaterThanOrEqual(1);
+    const ids = profiles.map((p) => p.id);
+    expect(ids).toContain("openui-default");
+  });
+
+  it("loads openui-default profile", async () => {
+    const profile = await getProfile("openui-default");
+    expect(profile.id).toBe("openui-default");
+    expect(profile.name).toBe("OpenUI Default");
+  });
+
+  it("throws for unknown profile", async () => {
+    await expect(getProfile("nonexistent")).rejects.toThrow("Unknown library");
+  });
+
+  it("getPrompt returns non-empty string", async () => {
+    const profile = await getProfile("openui-default");
+    const prompt = await profile.getPrompt();
+    expect(prompt.length).toBeGreaterThan(1000);
+    expect(prompt).toContain("Stack");
+  }, 30000);
+
+  it("getComponents returns component list", async () => {
+    const profile = await getProfile("openui-default");
+    const components = await profile.getComponents();
+    expect(components.length).toBeGreaterThan(30);
+    const names = components.map((c) => c.name);
+    expect(names).toContain("Stack");
+    expect(names).toContain("TextContent");
+    expect(names).toContain("Card");
+  });
+});
+
+describe("Spec Validation", () => {
+  it("valid spec returns valid: true", async () => {
+    const profile = await getProfile("openui-default");
+    const result = await profile.validate(
+      'root = Stack([text])\ntext = TextContent("Hello")',
+    );
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.meta.statementCount).toBe(2);
+  });
+
+  it("unknown component returns errors", async () => {
+    const profile = await getProfile("openui-default");
+    const result = await profile.validate(
+      'root = Stack([item])\nitem = FakeComponent("test")',
+    );
+    expect(result.errors.length).toBeGreaterThan(0);
+    const codes = result.errors.map((e) => e.code);
+    expect(codes).toContain("unknown-component");
+  });
+
+  it("unresolved references detected", async () => {
+    const profile = await getProfile("openui-default");
+    const result = await profile.validate("root = Stack([missing])");
+    expect(result.meta.unresolved).toContain("missing");
+    expect(result.valid).toBe(false);
+  });
+
+  it("orphaned statements detected", async () => {
+    const profile = await getProfile("openui-default");
+    const result = await profile.validate(
+      'root = Stack([text])\ntext = TextContent("Hello")\norphan = TextContent("Unused")',
+    );
+    expect(result.meta.orphaned).toContain("orphan");
+  });
+
+  it("empty spec returns valid: false", async () => {
+    const profile = await getProfile("openui-default");
+    const result = await profile.validate("");
+    expect(result.valid).toBe(false);
+  });
+
+  it("complex valid spec passes", async () => {
+    const profile = await getProfile("openui-default");
+    const spec = `root = Stack([header, chart, tbl])
+header = CardHeader("Dashboard", "Overview")
+chart = BarChart(["A", "B", "C"], [Series("Data", [10, 20, 30])])
+tbl = Table([Col("Name", ["Alice", "Bob"]), Col("Score", [95, 87], "number")])`;
+    const result = await profile.validate(spec);
+    expect(result.valid).toBe(true);
+    expect(result.meta.statementCount).toBe(4);
   });
 });

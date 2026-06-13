@@ -5,6 +5,7 @@ import { mkdir, readFile, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { applyPendingUpdate, getVersion } from "./update.js";
+import { getProfile, listProfiles } from "./libraries/index.js";
 
 applyPendingUpdate();
 
@@ -85,7 +86,9 @@ async function serveDisk(filePath: string): Promise<Response | null> {
 }
 
 function startHttpServer() {
+  try {
   Bun.serve({
+    hostname: "127.0.0.1",
     port: PREVIEWER_PORT,
     async fetch(req) {
       const url = new URL(req.url);
@@ -122,39 +125,18 @@ function startHttpServer() {
       return new Response("Not Found", { status: 404 });
     },
   });
-}
-
-async function getSystemPrompt(): Promise<string> {
-  const { openuiLibrary, openuiPromptOptions } = await import(
-    "@openuidev/react-ui/genui-lib"
-  );
-  return openuiLibrary.prompt(openuiPromptOptions);
-}
-
-async function getComponents(): Promise<
-  Array<{ name: string; description: string; props: string[] }>
-> {
-  const { openuiLibrary } = await import("@openuidev/react-ui/genui-lib");
-  const components: Array<{
-    name: string;
-    description: string;
-    props: string[];
-  }> = [];
-
-  for (const [name, def] of Object.entries(openuiLibrary.components || {})) {
-    const comp = def as {
-      description?: string;
-      props?: { shape?: Record<string, unknown> };
-    };
-    components.push({
-      name,
-      description: comp.description || "",
-      props: comp.props?.shape ? Object.keys(comp.props.shape) : [],
-    });
+  } catch (err) {
+    const msg = (err as Error).message || "";
+    if (msg.includes("EADDRINUSE") || msg.includes("address already in use") || msg.includes("already being used")) {
+      console.error(`[openui-mcp] Port ${PREVIEWER_PORT} is already in use.`);
+      console.error(`[openui-mcp] Start with a different port: openui-mcp --port=${PREVIEWER_PORT + 1}`);
+      process.exit(1);
+    }
+    throw err;
   }
-
-  return components;
 }
+
+const DEFAULT_LIBRARY = "openui-default";
 
 if (args.includes("--setup")) {
   const { runSetup } = await import("./setup.js");
@@ -170,9 +152,10 @@ const server = new McpServer({
 server.tool(
   "get_system_prompt",
   "Get the full system prompt for generating OpenUI Lang specs. Inject this into context so the LLM knows the component syntax, available components, and rules.",
-  {},
-  async () => {
-    const prompt = await getSystemPrompt();
+  { libraryId: z.string().optional().describe("Library profile ID (default: openui-default)") },
+  async ({ libraryId }) => {
+    const profile = await getProfile(libraryId || DEFAULT_LIBRARY);
+    const prompt = await profile.getPrompt();
     return { content: [{ type: "text", text: prompt }] };
   }
 );
@@ -180,9 +163,10 @@ server.tool(
 server.tool(
   "get_components",
   "Get a summary list of available UI components with their names, descriptions, and prop names.",
-  {},
-  async () => {
-    const components = await getComponents();
+  { libraryId: z.string().optional().describe("Library profile ID (default: openui-default)") },
+  async ({ libraryId }) => {
+    const profile = await getProfile(libraryId || DEFAULT_LIBRARY);
+    const components = await profile.getComponents();
     return {
       content: [{ type: "text", text: JSON.stringify(components, null, 2) }],
     };
@@ -230,6 +214,34 @@ server.tool(
       content: [
         { type: "text", text: `http://localhost:${PREVIEWER_PORT}` },
       ],
+    };
+  }
+);
+
+server.tool(
+  "validate_spec",
+  "Validate an OpenUI Lang spec without writing it. Returns parse errors, unresolved references, and orphaned statements.",
+  {
+    spec: z.string().describe("The OpenUI Lang spec to validate"),
+    libraryId: z.string().optional().describe("Library profile ID (default: openui-default)"),
+  },
+  async ({ spec, libraryId }) => {
+    const profile = await getProfile(libraryId || DEFAULT_LIBRARY);
+    const result = await profile.validate(spec);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "list_libraries",
+  "List available component library profiles.",
+  {},
+  async () => {
+    const libraries = listProfiles();
+    return {
+      content: [{ type: "text", text: JSON.stringify(libraries, null, 2) }],
     };
   }
 );

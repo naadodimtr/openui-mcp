@@ -5,7 +5,7 @@ import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 
 const REPO = "naadodimtr/openui-mcp";
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 function getPlatformArtifact(): string {
   const platform = process.platform;
