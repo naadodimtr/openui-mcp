@@ -13,8 +13,11 @@ flowchart LR
   Server -->|Bun.serve| HTTP[HTTP :6556]
   Spec -->|reads| HTTP
   HTTP -->|GET /api/spec| Browser
+  HTTP -->|GET /api/library-info| Browser
   Browser -->|polls 500ms| Renderer
 ```
+
+The previewer dynamically loads the selected component library (via `/api/library-info`) and renders OpenUI Lang specs.
 
 ## Install & Update
 
@@ -40,52 +43,64 @@ To update, either re-run the install script or:
 openui-mcp --update
 ```
 
-## Tested MCP Clients
-
-Works with any MCP client that supports stdio transport. Tested with:
-
-| Client | Status |
-|--------|--------|
-| OpenCode | ✓ |
-| Claude Code | ✓ |
-| Cursor | ✗ |
-| Windsurf | ✗ |
-| Gemini CLI | ✗ |
-| GitHub Copilot | ✗ |
-| Codex | ✗ |
-| Antigravity | ✗ |
-| Crush | ✗ |
-
 ## MCP Tools
 
 | Tool | Description |
 |------|-------------|
 | `get_system_prompt` | Returns the full system prompt for generating valid OpenUI Lang specs |
 | `get_components` | Returns available component names, descriptions, and prop names |
-| `update_spec` | Writes a spec to the previewer (triggers re-render in browser) |
+| `update_spec` | Writes a spec to the previewer — triggers re-render in browser |
 | `get_current_spec` | Reads the current spec being rendered |
 | `get_preview_url` | Returns the previewer URL |
 | `validate_spec` | Validates a spec without writing — returns parse errors, unresolved refs, orphaned statements |
-| `list_libraries` | Lists available component library profiles |
+| `list_libraries` | Lists available component library profile IDs, names, and descriptions |
 
-`get_system_prompt`, `get_components`, and `validate_spec` accept an optional `libraryId` parameter (default: `openui-default`).
+`get_system_prompt`, `get_components`, and `validate_spec` accept an optional `libraryId` parameter.
 
-## Library Plugins
+## Library Plugins & Adapters
 
-OpenUI MCP supports swappable component libraries. The default library (`openui-default`) ships built-in. Additional libraries are installed as runtime plugins.
+OpenUI MCP supports swappable component libraries through a runtime plugin system. The default library (`openui-default`) ships built-in. Additional libraries are installed as plugins.
+
+### Cloudflare Kumo (Reference Adapter)
+
+41 components from Cloudflare's design system, including Typography, Badges, Buttons, Cards, Callouts, Code, Tables, Meters, Forms, Tabs, Dialogs, Dropdowns, DatePicker, and more. Full variant coverage across all components.
 
 ```bash
-# Install a library adapter
+# Install Kumo adapter
 openui-mcp install-library github:naadodimtr/openui-kumo
 
-# Set project library
-openui-mcp init --library=kumo
+# Or build and install locally
+bun adapters/kumo/build.ts
+openui-mcp install-library ./adapters/kumo/dist/
 
-# List installed libraries
-openui-mcp list-libraries
+# Set as default for a project
+openui-mcp init --library=kumo
 ```
 
-Plugins are stored in `~/.openui-mcp/libraries/`. See `adapters/ADAPTER_GUIDE.md` for creating your own adapter.
+### Creating Your Own Adapter
+
+See [`adapters/ADAPTER_GUIDE.md`](adapters/ADAPTER_GUIDE.md) for a complete guide covering:
+
+- The `openui-mcp-adapter.yaml` spec format
+- Compound component patterns (Radio, Breadcrumbs, Dropdown, Dialog)
+- Variant mapping and inline style fallbacks
+- Unit and E2E testing blueprints
+- Build pipeline and checksum security
+
+```bash
+openui-mcp build-adapter ./my-adapter.yaml --output ./dist/
+openui-mcp install-library ./dist/
+```
+
+### Per-Project Config
+
+Projects can set a default library via `.openui/config.json`:
+
+```json
+{ "library": "kumo" }
+```
+
+The server reads this on startup. The `libraryId` param on tool calls overrides it.
 
 ## CLI
 
@@ -96,8 +111,8 @@ Plugins are stored in `~/.openui-mcp/libraries/`. See `adapters/ADAPTER_GUIDE.md
 | `--update` | `openui-mcp --update` | Self-update to latest release |
 | `--update <ver>` | `openui-mcp --update v1.0.0` | Update to a specific version |
 | `--version` | `openui-mcp --version` | Print current version |
-| `init` | `openui-mcp init --library=kumo` | Initialize project config (`.openui/config.json`) |
-| `install-library` | `openui-mcp install-library github:org/repo` | Install a library plugin |
+| `init` | `openui-mcp init --library=kumo` | Create `.openui/config.json` |
+| `install-library` | `openui-mcp install-library ./dist/` | Install a library plugin |
 | `update-library` | `openui-mcp update-library kumo` | Update a library plugin |
 | `remove-library` | `openui-mcp remove-library kumo` | Remove a library plugin |
 | `build-adapter` | `openui-mcp build-adapter ./adapter.yaml` | Build adapter bundle from spec |
@@ -108,6 +123,15 @@ Plugins are stored in `~/.openui-mcp/libraries/`. See `adapters/ADAPTER_GUIDE.md
 |----------|---------|-------------|
 | `OPENUI_SPEC_DIR` | `.openui` | Directory for spec files (relative to CWD or absolute) |
 | `PREVIEWER_PORT` | `6556` | Port for the previewer + API |
+
+## Testing
+
+```bash
+bun test                                       # 75 unit tests
+bun test ./adapters/kumo/tests/renderer.test.ts  # 112 Kumo renderer tests
+bunx playwright test                           # 34 E2E tests
+bun run test:all                               # All three sequentially
+```
 
 ## Development
 
@@ -120,15 +144,8 @@ bun src/server.ts   # MCP server + previewer on http://localhost:6556
 For previewer hot-reload:
 
 ```bash
-bun src/server.ts &                          # MCP server in background
+bun src/server.ts &                              # MCP server in background
 cd previewer && PREVIEWER_PORT=6556 bun run dev  # Vite on :5173, proxies /api to :6556
-```
-
-## Testing
-
-```bash
-bun test                # Unit + spec stress tests
-bunx playwright test    # E2E browser tests
 ```
 
 ## Building
