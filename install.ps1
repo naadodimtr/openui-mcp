@@ -29,6 +29,14 @@ Invoke-WebRequest -Uri $Url -OutFile $TempZip
 Expand-Archive -Path $TempZip -DestinationPath $InstallDir -Force
 Remove-Item $TempZip
 
+$Binary = Join-Path $InstallDir "openui-mcp.exe"
+$Extracted = Join-Path $InstallDir "$Artifact.exe"
+if (Test-Path $Extracted -PathType Leaf) {
+    Move-Item -Force $Extracted $Binary
+} elseif (Test-Path (Join-Path $InstallDir $Artifact) -PathType Leaf) {
+    Move-Item -Force (Join-Path $InstallDir $Artifact) $Binary
+}
+
 $CurrentPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($CurrentPath -notlike "*$InstallDir*") {
     [Environment]::SetEnvironmentVariable("Path", "$InstallDir;$CurrentPath", "User")
@@ -39,7 +47,12 @@ Write-Host ""
 Write-Host "  ✓ openui-mcp $Version installed successfully!"
 Write-Host ""
 
-& "$InstallDir\openui-mcp.exe" --setup
+if ([Console]::IsInputRedirected) {
+    Write-Host "  Run 'openui-mcp --setup' to configure your MCP client."
+    Write-Host "  Preview: http://localhost:6556 (default)"
+} else {
+    & $Binary --setup
+}
 
 Write-Host ""
 Write-Host "  Update later with: openui-mcp --update"

@@ -50,7 +50,13 @@ echo "  To:   $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 
 curl -fsSL "$URL" | tar -xz -C "$INSTALL_DIR"
-chmod +x "$INSTALL_DIR/openui-mcp"
+
+EXTRACTED="$INSTALL_DIR/$ARTIFACT"
+BINARY="$INSTALL_DIR/openui-mcp"
+if [ -f "$EXTRACTED" ]; then
+  mv -f "$EXTRACTED" "$BINARY"
+fi
+chmod +x "$BINARY"
 
 if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
   SHELL_RC=""
@@ -73,7 +79,7 @@ echo "  ✓ openui-mcp $VERSION installed successfully!"
 echo ""
 
 if [ -t 0 ] || [ -e /dev/tty ]; then
-  "$INSTALL_DIR/openui-mcp" --setup < /dev/tty
+  "$BINARY" --setup < /dev/tty
 else
   echo "  Run 'openui-mcp --setup' to configure your MCP client."
   echo "  Preview: http://localhost:6556 (default)"
