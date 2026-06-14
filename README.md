@@ -65,16 +65,42 @@ Works with any MCP client that supports stdio transport. Tested with:
 | `update_spec` | Writes a spec to the previewer (triggers re-render in browser) |
 | `get_current_spec` | Reads the current spec being rendered |
 | `get_preview_url` | Returns the previewer URL |
+| `validate_spec` | Validates a spec without writing — returns parse errors, unresolved refs, orphaned statements |
+| `list_libraries` | Lists available component library profiles |
+
+`get_system_prompt`, `get_components`, and `validate_spec` accept an optional `libraryId` parameter (default: `openui-default`).
+
+## Library Plugins
+
+OpenUI MCP supports swappable component libraries. The default library (`openui-default`) ships built-in. Additional libraries are installed as runtime plugins.
+
+```bash
+# Install a library adapter
+openui-mcp install-library github:naadodimtr/openui-kumo
+
+# Set project library
+openui-mcp init --library=kumo
+
+# List installed libraries
+openui-mcp list-libraries
+```
+
+Plugins are stored in `~/.openui-mcp/libraries/`. See `adapters/ADAPTER_GUIDE.md` for creating your own adapter.
 
 ## CLI
 
-| Flag | Example | Description |
-|------|---------|-------------|
+| Command | Example | Description |
+|---------|---------|-------------|
 | `--port=N` | `openui-mcp --port=1234` | Override previewer HTTP port |
 | `--setup` | `openui-mcp --setup` | Interactive MCP client configuration |
 | `--update` | `openui-mcp --update` | Self-update to latest release |
-| `--update <ver>` | `openui-mcp --update v0.3.0` | Update to a specific version |
+| `--update <ver>` | `openui-mcp --update v1.0.0` | Update to a specific version |
 | `--version` | `openui-mcp --version` | Print current version |
+| `init` | `openui-mcp init --library=kumo` | Initialize project config (`.openui/config.json`) |
+| `install-library` | `openui-mcp install-library github:org/repo` | Install a library plugin |
+| `update-library` | `openui-mcp update-library kumo` | Update a library plugin |
+| `remove-library` | `openui-mcp remove-library kumo` | Remove a library plugin |
+| `build-adapter` | `openui-mcp build-adapter ./adapter.yaml` | Build adapter bundle from spec |
 
 ## Environment Variables
 

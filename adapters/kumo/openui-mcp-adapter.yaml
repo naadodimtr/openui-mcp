@@ -1,0 +1,265 @@
+id: kumo
+name: Cloudflare Kumo
+version: 0.1.0
+upstream: "@cloudflare/kumo@^2.0.0"
+description: "Cloudflare's design system — semantic tokens, Tailwind v4, accessible components"
+
+styles:
+  entry: styles.css
+  framework: tailwind-v4
+
+renderer: ./src/renderer.tsx
+
+root: Stack
+
+componentGroups:
+  - name: Layout
+    components: [Stack, Card, Tabs, TabItem, Separator]
+    notes:
+      - "Stack is a flex container (Kumo has no native Stack — uses wrapper)"
+      - "Card wraps Kumo's Surface component"
+  - name: Content
+    components: [Text, Badge, Callout]
+    notes:
+      - "Text maps directly to Kumo Text component"
+      - "Callout wraps Kumo's Banner component"
+  - name: Data
+    components: [Table, TableColumn]
+    notes:
+      - "Table wraps Kumo's compound Table (Header/Body/Row/Cell)"
+      - "TableColumn is column-oriented (same pattern as OpenUI default)"
+  - name: Forms
+    components: [Button, Input, Select, SelectItem, Switch, Checkbox]
+
+components:
+  - name: Stack
+    import: "{ Stack } from ./wrappers"
+    description: "Flex container with direction and gap"
+    props:
+      - name: children
+        type: any[]
+        required: true
+        position: 0
+      - name: direction
+        type: enum [row, column]
+        position: 1
+      - name: gap
+        type: enum [none, xs, sm, md, lg, xl]
+        position: 2
+      - name: align
+        type: enum [start, center, end, stretch, baseline]
+        position: 3
+      - name: justify
+        type: enum [start, center, end, between, around, evenly]
+        position: 4
+
+  - name: Card
+    import: "{ Surface } from @cloudflare/kumo"
+    description: "Elevated container using Kumo Surface"
+    props:
+      - name: children
+        type: any[]
+        required: true
+        position: 0
+      - name: variant
+        type: enum [elevated, outlined, ghost]
+        position: 1
+
+  - name: Text
+    import: "{ Text } from @cloudflare/kumo"
+    description: "Text block with semantic sizing and weight"
+    props:
+      - name: children
+        type: string
+        required: true
+        position: 0
+      - name: size
+        type: enum [xs, sm, base, lg]
+        position: 1
+      - name: weight
+        type: enum [normal, medium, semibold, bold]
+        position: 2
+      - name: color
+        type: enum [default, subtle, muted, accent, success, warning, danger]
+        position: 3
+
+  - name: Button
+    import: "{ Button } from @cloudflare/kumo"
+    description: "Interactive button with variants and sizes"
+    props:
+      - name: children
+        type: string
+        required: true
+        position: 0
+      - name: variant
+        type: enum [primary, secondary, ghost, destructive, outline]
+        position: 1
+      - name: size
+        type: enum [xs, sm, base, lg]
+        position: 2
+
+  - name: Badge
+    import: "{ Badge } from @cloudflare/kumo"
+    description: "Small label for status or categorization"
+    props:
+      - name: children
+        type: string
+        required: true
+        position: 0
+      - name: variant
+        type: enum [neutral, info, success, warning, danger]
+        position: 1
+      - name: size
+        type: enum [sm, md]
+        position: 2
+
+  - name: Callout
+    import: "{ Banner } from @cloudflare/kumo"
+    description: "Alert banner for important information (wraps Kumo Banner)"
+    props:
+      - name: variant
+        type: enum [info, success, warning, danger]
+        required: true
+        position: 0
+      - name: title
+        type: string
+        required: true
+        position: 1
+      - name: description
+        type: string
+        position: 2
+
+  - name: Table
+    import: "{ Table } from @cloudflare/kumo"
+    description: "Data table with column definitions (wraps Kumo compound Table)"
+    props:
+      - name: columns
+        type: component[]
+        required: true
+        position: 0
+
+  - name: TableColumn
+    import: "{ TableColumn } from ./wrappers"
+    description: "Column definition for Table"
+    props:
+      - name: label
+        type: string
+        required: true
+        position: 0
+      - name: data
+        type: any
+        required: true
+        position: 1
+      - name: type
+        type: enum [string, number, action]
+        position: 2
+
+  - name: Input
+    import: "{ Input } from @cloudflare/kumo"
+    description: "Text input field"
+    props:
+      - name: name
+        type: string
+        required: true
+        position: 0
+      - name: placeholder
+        type: string
+        position: 1
+      - name: type
+        type: enum [text, email, password, number, url]
+        position: 2
+
+  - name: Select
+    import: "{ Select } from @cloudflare/kumo"
+    description: "Dropdown select (wraps Kumo compound Select)"
+    props:
+      - name: name
+        type: string
+        required: true
+        position: 0
+      - name: items
+        type: component[]
+        required: true
+        position: 1
+      - name: placeholder
+        type: string
+        position: 2
+
+  - name: SelectItem
+    import: "{ SelectItem } from ./wrappers"
+    description: "Option for Select"
+    props:
+      - name: value
+        type: string
+        required: true
+        position: 0
+      - name: label
+        type: string
+        required: true
+        position: 1
+
+  - name: Tabs
+    import: "{ Tabs } from @cloudflare/kumo"
+    description: "Tabbed container (wraps Kumo compound Tabs)"
+    props:
+      - name: items
+        type: component[]
+        required: true
+        position: 0
+
+  - name: TabItem
+    import: "{ TabItem } from ./wrappers"
+    description: "Tab panel within Tabs"
+    props:
+      - name: value
+        type: string
+        required: true
+        position: 0
+      - name: label
+        type: string
+        required: true
+        position: 1
+      - name: content
+        type: any[]
+        required: true
+        position: 2
+
+  - name: Switch
+    import: "{ Switch } from @cloudflare/kumo"
+    description: "Toggle switch"
+    props:
+      - name: name
+        type: string
+        required: true
+        position: 0
+      - name: label
+        type: string
+        required: true
+        position: 1
+      - name: defaultChecked
+        type: boolean
+        position: 2
+
+  - name: Checkbox
+    import: "{ Checkbox } from @cloudflare/kumo"
+    description: "Checkbox toggle"
+    props:
+      - name: name
+        type: string
+        required: true
+        position: 0
+      - name: label
+        type: string
+        required: true
+        position: 1
+      - name: defaultChecked
+        type: boolean
+        position: 2
+
+  - name: Separator
+    import: "{ Separator } from ./wrappers"
+    description: "Visual divider between content sections"
+    props:
+      - name: orientation
+        type: enum [horizontal, vertical]
+        position: 0

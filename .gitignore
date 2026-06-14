@@ -6,7 +6,15 @@ previewer/dist
 src/embedded-assets.ts
 .test-openui
 .test-specs
+.test-cli
+.test-plugins
+.test-builder
 .e2e-openui
+.e2e-error
+.e2e-libswitch
+.e2e-kumo
 test-results
 bun.lockb
 .vscode
+adapters/*/dist
+sessions

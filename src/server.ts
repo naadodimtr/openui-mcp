@@ -5,6 +5,8 @@ import { mkdir, readFile, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { applyPendingUpdate, getVersion } from "./update.js";
+import { getProfile, listProfiles, initPlugins, getProjectLibrary } from "./libraries/index.js";
+import { getPluginDir } from "./plugins/loader.js";
 
 applyPendingUpdate();
 
@@ -31,6 +33,97 @@ if (args.includes("--update")) {
   process.exit(0);
 }
 
+if (args.includes("install-library")) {
+  const { installLibrary } = await import("./plugins/installer.js");
+  const source = args[args.indexOf("install-library") + 1];
+  if (!source || source.startsWith("--")) {
+    console.error("Usage: openui-mcp install-library <source>");
+    console.error("  Sources: github:owner/repo, ./local/path");
+    process.exit(1);
+  }
+  const versionArg = args.find((a) => a.startsWith("--version="));
+  const version = versionArg ? versionArg.split("=")[1] : undefined;
+  try {
+    const result = await installLibrary(source, version);
+    console.log(`\n  ✓ Installed "${result.name}" (${result.id}) v${result.version}`);
+    console.log(`    Source: ${result.source}\n`);
+  } catch (err) {
+    console.error(`  Error: ${(err as Error).message}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+if (args.includes("update-library")) {
+  const { updateLibrary } = await import("./plugins/installer.js");
+  const id = args[args.indexOf("update-library") + 1];
+  if (!id || id.startsWith("--")) {
+    console.error("Usage: openui-mcp update-library <id>");
+    process.exit(1);
+  }
+  try {
+    const result = await updateLibrary(id);
+    console.log(`\n  ✓ Updated "${result.name}" to v${result.version}\n`);
+  } catch (err) {
+    console.error(`  Error: ${(err as Error).message}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+if (args.includes("remove-library")) {
+  const { removeLibrary } = await import("./plugins/installer.js");
+  const id = args[args.indexOf("remove-library") + 1];
+  if (!id || id.startsWith("--")) {
+    console.error("Usage: openui-mcp remove-library <id>");
+    process.exit(1);
+  }
+  try {
+    removeLibrary(id);
+    console.log(`\n  ✓ Removed "${id}"\n`);
+  } catch (err) {
+    console.error(`  Error: ${(err as Error).message}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+if (args.includes("build-adapter")) {
+  const { buildAdapter } = await import("./plugins/builder.js");
+  const yamlPath = args[args.indexOf("build-adapter") + 1];
+  if (!yamlPath || yamlPath.startsWith("--")) {
+    console.error("Usage: openui-mcp build-adapter <yaml-path> [--output=./dist]");
+    process.exit(1);
+  }
+  const outputFlag = args.find((a) => a.startsWith("--output="));
+  const outputDir = outputFlag ? outputFlag.split("=")[1] : "./dist";
+  try {
+    console.log(`\n  Building adapter from ${yamlPath}...\n`);
+    const result = await buildAdapter(yamlPath, outputDir);
+    console.log(`  ✓ Built "${result.name}" (${result.id}) v${result.version}`);
+    console.log(`    Output: ${result.outputDir}`);
+    console.log(`    Files: ${result.files.join(", ")}\n`);
+  } catch (err) {
+    console.error(`  Error: ${(err as Error).message}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+if (args.includes("init")) {
+  const specDir = resolve(process.env.OPENUI_SPEC_DIR || ".openui");
+  if (!existsSync(specDir)) {
+    await mkdir(specDir, { recursive: true });
+  }
+  const libArg = args.find((a) => a.startsWith("--library="));
+  const library = libArg ? libArg.split("=")[1] : "openui-default";
+  const configPath = resolve(specDir, "config.json");
+  await Bun.write(configPath, JSON.stringify({ library }, null, 2) + "\n");
+  console.log(`\n  ✓ Initialized .openui/config.json`);
+  console.log(`    Library: ${library}\n`);
+  process.exit(0);
+}
+
 const SPEC_DIR = resolve(process.env.OPENUI_SPEC_DIR || ".openui");
 const SPEC_FILE = resolve(SPEC_DIR, "spec.oui");
 const PREVIEWER_PORT = parseInt(portArg || process.env.PREVIEWER_PORT || "6556", 10);
@@ -51,7 +144,7 @@ async function ensureSpecDir() {
 
 function getMimeType(path: string): string {
   if (path.endsWith(".html")) return "text/html";
-  if (path.endsWith(".js")) return "application/javascript";
+  if (path.endsWith(".js") || path.endsWith(".mjs")) return "application/javascript";
   if (path.endsWith(".css")) return "text/css";
   if (path.endsWith(".json")) return "application/json";
   if (path.endsWith(".svg")) return "image/svg+xml";
@@ -85,10 +178,40 @@ async function serveDisk(filePath: string): Promise<Response | null> {
 }
 
 function startHttpServer() {
+  try {
   Bun.serve({
+    hostname: "127.0.0.1",
     port: PREVIEWER_PORT,
     async fetch(req) {
       const url = new URL(req.url);
+
+      if (url.pathname === "/api/library-info") {
+        return Response.json({ id: getProjectLibrary(SPEC_DIR) });
+      }
+
+      if (url.pathname.startsWith("/libraries/")) {
+        const parts = url.pathname.slice("/libraries/".length).split("/");
+        const libId = parts[0];
+        const libFile = parts.slice(1).join("/");
+        if (libId && libFile) {
+          const pluginDir = getPluginDir(libId);
+          const fullPath = join(pluginDir, libFile);
+          if (!fullPath.startsWith(pluginDir)) {
+            return new Response("Forbidden", { status: 403 });
+          }
+          const file = Bun.file(fullPath);
+          if (await file.exists()) {
+            const content = await file.arrayBuffer();
+            return new Response(content, {
+              headers: {
+                "Content-Type": getMimeType(fullPath),
+                "Access-Control-Allow-Origin": "*",
+              },
+            });
+          }
+        }
+        return new Response("Not Found", { status: 404 });
+      }
 
       if (url.pathname === "/api/spec") {
         try {
@@ -122,39 +245,18 @@ function startHttpServer() {
       return new Response("Not Found", { status: 404 });
     },
   });
-}
-
-async function getSystemPrompt(): Promise<string> {
-  const { openuiLibrary, openuiPromptOptions } = await import(
-    "@openuidev/react-ui/genui-lib"
-  );
-  return openuiLibrary.prompt(openuiPromptOptions);
-}
-
-async function getComponents(): Promise<
-  Array<{ name: string; description: string; props: string[] }>
-> {
-  const { openuiLibrary } = await import("@openuidev/react-ui/genui-lib");
-  const components: Array<{
-    name: string;
-    description: string;
-    props: string[];
-  }> = [];
-
-  for (const [name, def] of Object.entries(openuiLibrary.components || {})) {
-    const comp = def as {
-      description?: string;
-      props?: { shape?: Record<string, unknown> };
-    };
-    components.push({
-      name,
-      description: comp.description || "",
-      props: comp.props?.shape ? Object.keys(comp.props.shape) : [],
-    });
+  } catch (err) {
+    const msg = (err as Error).message || "";
+    if (msg.includes("EADDRINUSE") || msg.includes("address already in use") || msg.includes("already being used") || msg.includes("Failed to start")) {
+      console.error(`[openui-mcp] Port ${PREVIEWER_PORT} is already in use. Previewer disabled — MCP tools still active.`);
+      console.error(`[openui-mcp] To use a different port: openui-mcp --port=${PREVIEWER_PORT + 1}`);
+      return;
+    }
+    throw err;
   }
-
-  return components;
 }
+
+const DEFAULT_LIBRARY = getProjectLibrary(SPEC_DIR);
 
 if (args.includes("--setup")) {
   const { runSetup } = await import("./setup.js");
@@ -170,9 +272,10 @@ const server = new McpServer({
 server.tool(
   "get_system_prompt",
   "Get the full system prompt for generating OpenUI Lang specs. Inject this into context so the LLM knows the component syntax, available components, and rules.",
-  {},
-  async () => {
-    const prompt = await getSystemPrompt();
+  { libraryId: z.string().optional().describe("Library profile ID (default: openui-default)") },
+  async ({ libraryId }) => {
+    const profile = await getProfile(libraryId || DEFAULT_LIBRARY);
+    const prompt = await profile.getPrompt();
     return { content: [{ type: "text", text: prompt }] };
   }
 );
@@ -180,9 +283,10 @@ server.tool(
 server.tool(
   "get_components",
   "Get a summary list of available UI components with their names, descriptions, and prop names.",
-  {},
-  async () => {
-    const components = await getComponents();
+  { libraryId: z.string().optional().describe("Library profile ID (default: openui-default)") },
+  async ({ libraryId }) => {
+    const profile = await getProfile(libraryId || DEFAULT_LIBRARY);
+    const components = await profile.getComponents();
     return {
       content: [{ type: "text", text: JSON.stringify(components, null, 2) }],
     };
@@ -234,8 +338,37 @@ server.tool(
   }
 );
 
+server.tool(
+  "validate_spec",
+  "Validate an OpenUI Lang spec without writing it. Returns parse errors, unresolved references, and orphaned statements.",
+  {
+    spec: z.string().describe("The OpenUI Lang spec to validate"),
+    libraryId: z.string().optional().describe("Library profile ID (default: openui-default)"),
+  },
+  async ({ spec, libraryId }) => {
+    const profile = await getProfile(libraryId || DEFAULT_LIBRARY);
+    const result = await profile.validate(spec);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "list_libraries",
+  "List available component library profiles.",
+  {},
+  async () => {
+    const libraries = listProfiles();
+    return {
+      content: [{ type: "text", text: JSON.stringify(libraries, null, 2) }],
+    };
+  }
+);
+
 async function main() {
   await ensureSpecDir();
+  initPlugins();
   startHttpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
