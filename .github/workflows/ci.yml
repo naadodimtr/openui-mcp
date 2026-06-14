@@ -24,14 +24,17 @@ jobs:
       - name: Run unit tests
         run: bun test
 
-      - name: Install Playwright
-        run: bunx playwright install chromium
+      - name: Build Kumo adapter
+        run: bun adapters/kumo/build.ts
 
-      - name: Embed assets
-        run: bun scripts/embed-assets.ts
-
-      - name: Run E2E tests
-        run: bunx playwright test
+      - name: Run Kumo renderer unit tests
+        run: bun test ./adapters/kumo/tests/renderer.test.ts
 
       - name: Verify build compiles
-        run: bun build --compile src/server.ts --outfile dist/openui-mcp
+        run: |
+          bun scripts/embed-assets.ts
+          bun build --compile src/server.ts --outfile dist/openui-mcp
+
+  e2e:
+    needs: test
+    uses: ./.github/workflows/e2e.yml
