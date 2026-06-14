@@ -88,7 +88,7 @@ test("serves kumo styles.css", async ({ request }) => {
 
 test("kumo spec renders in previewer", async ({ page }) => {
   await writeFile(SPEC_FILE, 'root = Stack([t])\nt = Text("Kumo E2E Test")', "utf-8");
-  await page.goto("/");
+  await page.goto(`http://localhost:${PORT}`);
   await page.waitForTimeout(2000);
   const body = await page.textContent("body");
   expect(body?.length).toBeGreaterThan(0);
