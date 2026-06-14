@@ -40,9 +40,16 @@ Dual serving mode:
 
 CLI flags:
 - `--port=N` — override previewer port
-- `--setup` — interactive MCP client configuration wizard (9 clients: OpenCode, Claude Code, Cursor, Windsurf, Gemini CLI, GitHub Copilot, Codex, Antigravity, Crush)
-- `--update [version]` — self-update from GitHub Releases (latest or pinned version)
+- `--setup` — interactive MCP client configuration wizard (9 clients)
+- `--update [version]` — self-update from GitHub Releases
 - `--version` — print current version
+
+CLI commands:
+- `init [--library=ID]` — create `.openui/config.json` with default library
+- `install-library <source>` — install plugin from `github:org/repo` or local path
+- `update-library <id>` — update installed plugin from its source
+- `remove-library <id>` — uninstall plugin
+- `build-adapter <yaml> [--output=dir]` — build adapter bundle from `openui-mcp-adapter.yaml`
 
 ## Library Profiles
 
@@ -61,13 +68,52 @@ Interface: `LibraryProfile { id, name, description, getPrompt(), getComponents()
 
 Validation uses `createParser()` + `enrichErrors()` from `@openuidev/lang-core`.
 
+## Plugin System
+
+Runtime library plugins stored in `~/.openui-mcp/libraries/{id}/`:
+
+```
+manifest.json    — metadata + SHA-256 checksums
+library.mjs      — server-side: Zod schemas, prompt, validation
+renderer.mjs     — client-side: React components (React externalized)
+styles.css       — compiled CSS
+```
+
+Per-project library selection via `.openui/config.json`:
+```json
+{ "library": "kumo" }
+```
+
+Server reads config on startup, uses it as default for all tool calls. `libraryId` param on tools overrides.
+
+Plugin loading flow:
+1. `initPlugins()` scans `~/.openui-mcp/libraries/` for manifest.json files
+2. Registers each as a lazy-loaded `LibraryProfile` in the registry
+3. On first use, verifies checksums then dynamic `import()` of library.mjs
+
+Security: SHA-256 checksums verified on every load. Source recorded in manifest for audit.
+
+## Adapter Authoring
+
+See `adapters/ADAPTER_GUIDE.md` for creating library adapters.
+
+Standard spec file: `openui-mcp-adapter.yaml` — declarative component mapping.
+JSON Schema: `adapters/adapter-schema.json` — validation for the YAML format.
+Reference adapter: `adapters/kumo/` — Cloudflare Kumo (demonstrates codegen from registry).
+
+Build pipeline: `openui-mcp build-adapter ./openui-mcp-adapter.yaml --output ./dist/`
+
 ## Source Files
 
 | File | Purpose |
 |------|---------|
 | `src/server.ts` | MCP server + HTTP server, main entry |
-| `src/libraries/index.ts` | Library profile registry |
+| `src/libraries/index.ts` | Library profile registry + plugin integration |
 | `src/libraries/openui-default.ts` | Default OpenUI library profile |
+| `src/plugins/manifest.ts` | Manifest schema, checksum generation/verification |
+| `src/plugins/loader.ts` | Plugin discovery, loading, verification |
+| `src/plugins/installer.ts` | Install/update/remove from GitHub or local |
+| `src/plugins/builder.ts` | Build adapter bundle from YAML spec |
 | `src/setup.ts` | `--setup` wizard, writes MCP config for 9 clients |
 | `src/update.ts` | `--update` self-updater, `getVersion()`, `applyPendingUpdate()` |
 | `src/embedded-assets.ts` | Generated — inlined previewer dist (gitignored) |

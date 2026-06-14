@@ -1,0 +1,56 @@
+name: E2E
+on:
+  workflow_call: {}
+  workflow_dispatch: {}
+
+jobs:
+  e2e-default:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install previewer dependencies
+        run: cd previewer && bun install
+
+      - name: Build previewer
+        run: cd previewer && bun run build
+
+      - name: Embed assets
+        run: bun scripts/embed-assets.ts
+
+      - name: Install Playwright
+        run: bunx playwright install chromium
+
+      - name: Run E2E tests (default library)
+        run: bunx playwright test tests/e2e/e2e.pw.ts tests/e2e/error-boundary.pw.ts tests/e2e/library-switch.pw.ts
+
+  e2e-kumo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install previewer dependencies
+        run: cd previewer && bun install
+
+      - name: Build previewer
+        run: cd previewer && bun run build
+
+      - name: Embed assets
+        run: bun scripts/embed-assets.ts
+
+      - name: Build Kumo adapter
+        run: bun adapters/kumo/build.ts
+
+      - name: Install Playwright
+        run: bunx playwright install chromium
+
+      - name: Run Kumo E2E tests
+        run: bunx playwright test tests/e2e/kumo.pw.ts

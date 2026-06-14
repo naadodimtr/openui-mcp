@@ -24,14 +24,11 @@ jobs:
       - name: Run unit tests
         run: bun test
 
-      - name: Install Playwright
-        run: bunx playwright install chromium
-
-      - name: Embed assets
-        run: bun scripts/embed-assets.ts
-
-      - name: Run E2E tests
-        run: bunx playwright test
-
       - name: Verify build compiles
-        run: bun build --compile src/server.ts --outfile dist/openui-mcp
+        run: |
+          bun scripts/embed-assets.ts
+          bun build --compile src/server.ts --outfile dist/openui-mcp
+
+  e2e:
+    needs: test
+    uses: ./.github/workflows/e2e.yml

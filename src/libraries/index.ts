@@ -1,4 +1,7 @@
 import type { OpenUIError } from "@openuidev/lang-core";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { listInstalledPlugins, loadPlugin } from "../plugins/loader.js";
 
 export interface ValidationResult {
   valid: boolean;
@@ -55,6 +58,30 @@ export function listProfiles(): Array<{
     name,
     description,
   }));
+}
+
+export function getProjectLibrary(specDir: string): string {
+  const configPath = resolve(specDir, "config.json");
+  if (!existsSync(configPath)) return "openui-default";
+  try {
+    const raw = JSON.parse(readFileSync(configPath, "utf-8"));
+    return raw.library || "openui-default";
+  } catch {
+    return "openui-default";
+  }
+}
+
+export function initPlugins() {
+  const plugins = listInstalledPlugins();
+  for (const id of plugins) {
+    if (registry.has(id)) continue;
+    registerLibrary({
+      id,
+      name: id,
+      description: `Plugin: ${id}`,
+      loader: () => loadPlugin(id),
+    });
+  }
 }
 
 import { registerOpenUIDefault } from "./openui-default.js";

@@ -3,11 +3,47 @@ import { openuiLibrary } from "./libraries/openui-default";
 import { useState, useEffect, useRef } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
+function loadStylesheet(href: string) {
+  if (document.querySelector(`link[href="${href}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.appendChild(link);
+}
+
 export default function App() {
   const [spec, setSpec] = useState("");
+  const [library, setLibrary] = useState<any>(null);
+  const [libraryId, setLibraryId] = useState<string | null>(null);
   const lastModifiedRef = useRef(0);
 
   useEffect(() => {
+    fetch("/api/library-info")
+      .then((r) => r.json())
+      .then(async (info) => {
+        setLibraryId(info.id);
+        if (info.id === "openui-default") {
+          setLibrary(openuiLibrary);
+        } else {
+          loadStylesheet(`/libraries/${info.id}/styles.css`);
+          try {
+            const mod = await import(
+              /* @vite-ignore */ `/libraries/${info.id}/renderer.mjs`
+            );
+            setLibrary(mod.default);
+          } catch {
+            setLibrary(openuiLibrary);
+          }
+        }
+      })
+      .catch(() => {
+        setLibraryId("openui-default");
+        setLibrary(openuiLibrary);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!library) return;
     let active = true;
 
     async function poll() {
@@ -26,7 +62,15 @@ export default function App() {
 
     poll();
     return () => { active = false; };
-  }, []);
+  }, [library]);
+
+  if (!library) {
+    return (
+      <div style={{ height: "100vh", width: "100vw", display: "flex", alignItems: "center", justifyContent: "center", background: "#f9fafb" }}>
+        <p style={{ color: "#9ca3af" }}>Loading library...</p>
+      </div>
+    );
+  }
 
   if (!spec) {
     return (
@@ -36,6 +80,11 @@ export default function App() {
           <p style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
             Use the <code style={{ background: "#f3f4f6", padding: "0 4px", borderRadius: 4 }}>update_spec</code> MCP tool to render UI here
           </p>
+          {libraryId && libraryId !== "openui-default" && (
+            <p style={{ fontSize: "0.75rem", marginTop: "0.5rem" }}>
+              Library: <strong>{libraryId}</strong>
+            </p>
+          )}
         </div>
       </div>
     );
@@ -44,7 +93,7 @@ export default function App() {
   return (
     <ErrorBoundary spec={spec}>
       <div style={{ height: "100vh", width: "100vw", overflow: "auto", background: "#fff", padding: "1rem" }}>
-        <Renderer response={spec} library={openuiLibrary} />
+        <Renderer response={spec} library={library} />
       </div>
     </ErrorBoundary>
   );
