@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { spawn, ChildProcess } from "node:child_process";
+import { spawn, spawnSync, ChildProcess } from "node:child_process";
 import { writeFile, mkdir, rm, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -39,8 +39,9 @@ test.beforeAll(async () => {
     "utf-8",
   );
 
-  const install = Bun.spawnSync(["bun", "src/server.ts", "install-library", KUMO_DIST], {
+  spawnSync("bun", ["src/server.ts", "install-library", KUMO_DIST], {
     cwd: SERVER_CWD,
+    shell: true,
   });
 
   serverProcess = spawn("bun", ["src/server.ts"], {
