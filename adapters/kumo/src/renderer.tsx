@@ -309,8 +309,21 @@ function KumoDialog({ props, renderNode }: ComponentRenderProps) {
 }
 
 function KumoDatePicker({ props }: ComponentRenderProps) {
-  const { name, label } = props as any;
-  return <DatePicker name={name} label={label} />;
+  const { name, label, mode = "single" } = props as any;
+  const [selected, setSelected] = React.useState<Date | undefined>();
+  const [month, setMonth] = React.useState<Date>(new Date());
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      {label && <Label>{label}</Label>}
+      <DatePicker
+        mode={mode}
+        selected={selected}
+        onChange={(d: any) => setSelected(d)}
+        month={month}
+        onMonthChange={(m: Date) => setMonth(m)}
+      />
+    </div>
+  );
 }
 
 const StackDef = defineComponent({ name: "Stack", props: z.object({ children: z.array(z.any()), direction: z.enum(["row", "column"]).optional(), gap: z.enum(["none", "xs", "sm", "md", "lg", "xl"]).optional(), align: z.enum(["start", "center", "end", "stretch", "baseline"]).optional(), justify: z.enum(["start", "center", "end", "between", "around", "evenly"]).optional() }), description: "Flex container with direction and gap", component: KumoStack });
@@ -353,7 +366,7 @@ const FieldDef = defineComponent({ name: "Field", props: z.object({ label: z.str
 const DropdownMenuDef = defineComponent({ name: "DropdownMenu", props: z.object({ trigger: z.string(), items: z.array(z.any()) }), description: "Action menu triggered by button", component: KumoDropdownMenu });
 const MenuItemDef = defineComponent({ name: "MenuItem", props: z.object({ label: z.string(), separator: z.boolean().optional() }), description: "Item in DropdownMenu", component: KumoMenuItem });
 const DialogDef = defineComponent({ name: "Dialog", props: z.object({ title: z.string(), description: z.string().optional(), children: z.array(z.any()).optional() }), description: "Modal dialog panel", component: KumoDialog });
-const DatePickerDef = defineComponent({ name: "DatePicker", props: z.object({ name: z.string(), label: z.string().optional() }), description: "Calendar date picker", component: KumoDatePicker });
+const DatePickerDef = defineComponent({ name: "DatePicker", props: z.object({ name: z.string(), label: z.string().optional(), mode: z.enum(["single", "multiple", "range"]).optional() }), description: "Calendar date picker with month navigation", component: KumoDatePicker });
 
 const library = createLibrary({
   components: [StackDef, CardDef, TextDef, ButtonDef, BadgeDef, CalloutDef, TableDef, TableColumnDef, InputDef, SelectDef, SelectItemDef, TabsDef, TabItemDef, SwitchDef, CheckboxDef, SeparatorDef, CodeDef, ClipboardTextDef, EmptyDef, GridDef, LabelDef, LayerCardDef, LinkDef, LoaderDef, MeterDef, SensitiveInputDef, TextareaDef, RadioGroupDef, RadioItemDef, TooltipDef, CollapsibleDef, BreadcrumbsDef, BreadcrumbItemDef, PaginationDef, LinkButtonDef, SkeletonDef, FieldDef, DropdownMenuDef, MenuItemDef, DialogDef, DatePickerDef],
