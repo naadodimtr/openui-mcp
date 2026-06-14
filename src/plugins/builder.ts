@@ -232,6 +232,22 @@ export async function buildAdapter(yamlPath: string, outputDir: string) {
     console.log(`  Errors:\n${errors}`);
   }
 
+  const reactGlobalPlugin = {
+    name: "react-global",
+    setup(build: any) {
+      build.onResolve({ filter: /^react$|^react\/|^react-dom/ }, (args: any) => ({
+        path: args.path,
+        namespace: "react-global",
+      }));
+      build.onLoad({ filter: /.*/, namespace: "react-global" }, (args: any) => ({
+        contents: args.path.includes("jsx")
+          ? `const J = window.__OPENUI_JSX_RUNTIME || window.__OPENUI_REACT; export const jsx = J.jsx || J.createElement; export const jsxs = J.jsxs || J.createElement; export const jsxDEV = J.jsx || J.createElement; export const Fragment = J.Fragment || window.__OPENUI_REACT.Fragment;`
+          : `const R = window.__OPENUI_REACT; export default R; export const {useState, useEffect, useRef, useCallback, useMemo, useContext, useReducer, useLayoutEffect, forwardRef, memo, createElement, Fragment, Children, cloneElement, isValidElement, createContext, createRef, lazy, Suspense, startTransition, Component, PureComponent, useId, useSyncExternalStore, useInsertionEffect, useDeferredValue, useTransition, useImperativeHandle, useDebugValue} = R;`,
+        loader: "js",
+      }));
+    },
+  };
+
   try {
     const rendResult = await Bun.build({
       entrypoints: [rendSrcPath],
@@ -239,7 +255,7 @@ export async function buildAdapter(yamlPath: string, outputDir: string) {
       naming: "renderer.mjs",
       format: "esm",
       target: "browser",
-      external: ["react", "react-dom", "zod"],
+      plugins: [reactGlobalPlugin],
     });
 
     if (!rendResult.success) {

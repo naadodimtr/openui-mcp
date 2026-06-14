@@ -74,7 +74,7 @@ components:
         required: true
         position: 0
       - name: size
-        type: enum [xs, sm, md, lg, xl, 2xl]
+        type: enum [xs, sm, base, lg]
         position: 1
       - name: weight
         type: enum [normal, medium, semibold, bold]

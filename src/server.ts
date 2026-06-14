@@ -144,7 +144,7 @@ async function ensureSpecDir() {
 
 function getMimeType(path: string): string {
   if (path.endsWith(".html")) return "text/html";
-  if (path.endsWith(".js")) return "application/javascript";
+  if (path.endsWith(".js") || path.endsWith(".mjs")) return "application/javascript";
   if (path.endsWith(".css")) return "text/css";
   if (path.endsWith(".json")) return "application/json";
   if (path.endsWith(".svg")) return "image/svg+xml";
@@ -186,7 +186,7 @@ function startHttpServer() {
       const url = new URL(req.url);
 
       if (url.pathname === "/api/library-info") {
-        return Response.json({ id: DEFAULT_LIBRARY });
+        return Response.json({ id: getProjectLibrary(SPEC_DIR) });
       }
 
       if (url.pathname.startsWith("/libraries/")) {
@@ -201,7 +201,8 @@ function startHttpServer() {
           }
           const file = Bun.file(fullPath);
           if (await file.exists()) {
-            return new Response(file, {
+            const content = await file.arrayBuffer();
+            return new Response(content, {
               headers: {
                 "Content-Type": getMimeType(fullPath),
                 "Access-Control-Allow-Origin": "*",
