@@ -15,7 +15,7 @@
     "build:win": "bun build --compile src/server.ts --target=bun-windows-x64 --outfile dist/openui-mcp.exe"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@openuidev/lang-core": "^0.2.5",
     "@openuidev/react-lang": "^0.2.6",
     "@openuidev/react-ui": "^0.11.8",
@@ -26,8 +26,10 @@
   },
   "devDependencies": {
     "@cloudflare/kumo": "^2.5.2",
+    "@phosphor-icons/react": "^2.1.10",
     "@playwright/test": "^1.60.0",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "echarts": "^6.1.0"
   },
   "keywords": ["mcp", "openui", "generative-ui", "ai"],
   "license": "MIT"

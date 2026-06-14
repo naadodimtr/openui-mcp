@@ -246,10 +246,10 @@ function startHttpServer() {
   });
   } catch (err) {
     const msg = (err as Error).message || "";
-    if (msg.includes("EADDRINUSE") || msg.includes("address already in use") || msg.includes("already being used")) {
-      console.error(`[openui-mcp] Port ${PREVIEWER_PORT} is already in use.`);
-      console.error(`[openui-mcp] Start with a different port: openui-mcp --port=${PREVIEWER_PORT + 1}`);
-      process.exit(1);
+    if (msg.includes("EADDRINUSE") || msg.includes("address already in use") || msg.includes("already being used") || msg.includes("Failed to start")) {
+      console.error(`[openui-mcp] Port ${PREVIEWER_PORT} is already in use. Previewer disabled — MCP tools still active.`);
+      console.error(`[openui-mcp] To use a different port: openui-mcp --port=${PREVIEWER_PORT + 1}`);
+      return;
     }
     throw err;
   }

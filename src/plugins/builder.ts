@@ -32,6 +32,7 @@ interface AdapterSpec {
   upstream?: string;
   description?: string;
   styles?: { entry: string; framework?: string };
+  renderer?: string;
   root?: string;
   componentGroups?: ComponentGroup[];
   components: ComponentDef[];
@@ -71,7 +72,7 @@ function generateZodSchema(props: PropDef[]): string {
 function generateLibrarySource(spec: AdapterSpec): string {
   const lines: string[] = [];
   lines.push(`import { createLibrary, defineComponent, createParser, enrichErrors } from "@openuidev/lang-core";`);
-  lines.push(`import { z } from "zod";`);
+  lines.push(`import { z } from "zod/v4";`);
   lines.push(``);
 
   for (const comp of spec.components) {
@@ -138,7 +139,7 @@ function generateLibrarySource(spec: AdapterSpec): string {
 function generateRendererSource(spec: AdapterSpec): string {
   const lines: string[] = [];
   lines.push(`import { createLibrary, defineComponent } from "@openuidev/lang-core";`);
-  lines.push(`import { z } from "zod";`);
+  lines.push(`import { z } from "zod/v4";`);
   lines.push(``);
 
   const importMap = new Map<string, string[]>();
@@ -203,13 +204,18 @@ export async function buildAdapter(yamlPath: string, outputDir: string) {
   mkdirSync(resolvedOutput, { recursive: true });
 
   const librarySource = generateLibrarySource(spec);
-  const rendererSource = generateRendererSource(spec);
-
   const libSrcPath = join(resolvedOutput, "_library.ts");
-  const rendSrcPath = join(resolvedOutput, "_renderer.ts");
-
   await Bun.write(libSrcPath, librarySource);
-  await Bun.write(rendSrcPath, rendererSource);
+
+  const yamlDir = dirname(resolvedYaml);
+  const rendSrcPath = spec.renderer
+    ? resolve(yamlDir, spec.renderer)
+    : join(resolvedOutput, "_renderer.ts");
+
+  if (!spec.renderer) {
+    const rendererSource = generateRendererSource(spec);
+    await Bun.write(rendSrcPath, rendererSource);
+  }
 
   const libResult = await Bun.build({
     entrypoints: [libSrcPath],
@@ -233,7 +239,7 @@ export async function buildAdapter(yamlPath: string, outputDir: string) {
       naming: "renderer.mjs",
       format: "esm",
       target: "browser",
-      external: ["react", "react-dom"],
+      external: ["react", "react-dom", "zod"],
     });
 
     if (!rendResult.success) {
@@ -258,7 +264,11 @@ export async function buildAdapter(yamlPath: string, outputDir: string) {
     await Bun.write(join(resolvedOutput, "styles.css"), "");
   }
 
-  try { Bun.spawnSync(["rm", "-f", libSrcPath, rendSrcPath]); } catch {}
+  const tempFiles = [libSrcPath];
+  if (!spec.renderer) tempFiles.push(rendSrcPath);
+  for (const f of tempFiles) {
+    try { const file = Bun.file(f); if (await file.exists()) await Bun.write(f, ""); Bun.spawnSync(["rm", "-f", f]); } catch {}
+  }
 
   const bundleFiles = ["library.mjs", "renderer.mjs", "styles.css"].filter((f) =>
     existsSync(join(resolvedOutput, f)),
