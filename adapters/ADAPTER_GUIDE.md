@@ -246,38 +246,80 @@ OpenUI Lang uses flat, positional components:
 Table([TableColumn("Name", ["Alice", "Bob"]), TableColumn("Score", [95, 87])])
 ```
 
-### The Bridge: Wrapper Components
+### Pattern A: HTML Bridge (for full control)
 
-Create a wrapper that takes flat props and renders the compound tree:
+When the library's compound structure is too nested for flat data, build custom HTML:
 
 ```tsx
-function KumoTable({ columns }: any) {
-  if (!columns || !Array.isArray(columns)) return null;
+function SimpleTable({ columns }: any) {
   const cols = columns.map((c: any) => c.props || c);
   const rowCount = cols[0]?.data?.length || 0;
-
   return (
-    <Table>
-      <Table.Header>
-        <Table.Row>
-          {cols.map((col, i) => (
-            <Table.ColumnHeader key={i}>{col.label}</Table.ColumnHeader>
-          ))}
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {Array.from({ length: rowCount }, (_, rowIdx) => (
-          <Table.Row key={rowIdx}>
-            {cols.map((col, colIdx) => (
-              <Table.Cell key={colIdx}>{col.data?.[rowIdx]}</Table.Cell>
-            ))}
-          </Table.Row>
+    <table>
+      <thead><tr>{cols.map((col, i) => <th key={i}>{col.label}</th>)}</tr></thead>
+      <tbody>
+        {Array.from({ length: rowCount }, (_, r) => (
+          <tr key={r}>{cols.map((col, c) => <td key={c}>{col.data?.[r]}</td>)}</tr>
         ))}
-      </Table.Body>
-    </Table>
+      </tbody>
+    </table>
   );
 }
 ```
+
+Use this when the library's compound structure is too rigid for your flat data or when styling consistency matters more than using native components.
+
+### Pattern B: Sub-Property Bridge (for light wrappers)
+
+When the library's sub-properties survive bundling (most React compound components do), use them directly:
+
+```tsx
+// Import the parent compound component
+import { Radio, Breadcrumbs, Collapsible, DropdownMenu, Dialog } from "@my-org/components";
+
+function MyRadioGroup({ items, name, defaultValue }: any) {
+  const options = items.map((item: any) => item.props || item);
+  return (
+    <Radio name={name} defaultValue={defaultValue || options[0]?.value}>
+      {options.map((opt) => <Radio.Item key={opt.value} value={opt.value} label={opt.label} />)}
+    </Radio>
+  );
+}
+
+function MyBreadcrumbs({ items }: any) {
+  const crumbs = items.map((item: any) => item.props || item);
+  return (
+    <Breadcrumbs>
+      {crumbs.map((crumb, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <Breadcrumbs.Separator />}
+          {crumb.href ? <Breadcrumbs.Link href={crumb.href}>{crumb.label}</Breadcrumbs.Link> : <Breadcrumbs.Current>{crumb.label}</Breadcrumbs.Current>}
+        </React.Fragment>
+      ))}
+    </Breadcrumbs>
+  );
+}
+```
+
+**Important**: Bun bundler preserves static properties on function components. `Radio.Item`, `Breadcrumbs.Link`, `Collapsible.Root`, `DropdownMenu.Trigger`, `Dialog.Root` all survive the build. If a sub-property is `undefined` after build, it means the library uses a different export pattern (e.g., barrel exports that tree-shake).
+
+### Pattern C: RenderNode Recursion (for nesting other spec components)
+
+When a component wraps child spec components, use the `renderNode` callback:
+
+```tsx
+import { type ComponentRenderProps } from "@openuidev/lang-core";
+
+function MyCard({ props, renderNode }: ComponentRenderProps) {
+  const { children, variant } = props as any;
+  const rendered = Array.isArray(children)
+    ? children.map((c: any, i: number) => <React.Fragment key={i}>{renderNode(c)}</React.Fragment>)
+    : null;
+  return <Surface className={variant === "elevated" ? "p-6 rounded-xl" : "p-4"}>{rendered}</Surface>;
+}
+```
+
+`renderNode` recursively walks the OpenUI component tree. Use it whenever a component accepts `children: z.array(z.any())`.
 
 ### Common Compound Patterns
 
@@ -286,7 +328,13 @@ function KumoTable({ columns }: any) {
 | **Table** | `Table([TableColumn("Name", data)])` | `{ columns: [{ props: { label, data } }] }` |
 | **Tabs** | `Tabs([TabItem("id", "Label", [content])])` | `{ items: [{ props: { value, label, content } }] }` |
 | **Select** | `Select("name", [SelectItem("val", "Label")])` | `{ name, items: [{ props: { value, label } }] }` |
-| **Accordion** | `Accordion([AccordionItem("id", "Title", [content])])` | `{ items: [{ props: { value, trigger, content } }] }` |
+| **Radio** | `RadioGroup("name", [RadioItem("val", "Label")])` | `{ name, items: [{ props: { value, label } }], defaultValue }` |
+| **Breadcrumbs** | `Breadcrumbs([BreadcrumbItem("Home", "/"), BreadcrumbItem("Page")])` | `{ items: [{ props: { label, href? } }] }` |
+| **Collapsible** | `Collapsible("Title", [content])` | `{ title, children: [...] }` |
+| **Dropdown** | `DropdownMenu("Button", [MenuItem("Edit"), MenuItem("Delete")])` | `{ trigger, items: [{ props: { label, separator? } }] }` |
+| **Dialog** | `Dialog("Title", "Description", [buttons])` | `{ title, description, children: [...] }` |
+| **Tooltip** | `Tooltip("Help text", [content])` | `{ content: string, children: [...] }` |
+| **Field** | `Field("Label", "Hint", [input])` | `{ label, hint, children: [...] }` | |
 
 ### Sub-component pattern
 
@@ -303,6 +351,83 @@ const TabItemDef = defineComponent({
 ```
 
 The parent (Tabs wrapper) reads `item.props.value`, `item.props.label`, `item.props.content` from the passed children.
+
+## Variant Mapping & Inline Styles
+
+### When library enums differ from your desired API
+
+Map values inside the wrapper function:
+
+```tsx
+function MyBadge({ label, variant = "neutral" }: any) {
+  const variantMap: Record<string, string> = { danger: "error" };
+  return <Badge variant={variantMap[variant] || variant}>{label}</Badge>;
+}
+
+function MyCode({ lang, code }: any) {
+  const langMap: Record<string, string> = { javascript: "ts", js: "ts", json: "jsonc", sh: "bash" };
+  return <Code lang={langMap[lang] || lang} code={code} />;
+}
+```
+
+### When the library component lacks your prop (e.g., no `color` or `weight` prop)
+
+Apply via inline styles:
+
+```tsx
+function MyText({ children, size = "base", weight, color }: any) {
+  const weightMap: Record<string, string> = { normal: "400", medium: "500", semibold: "600", bold: "700" };
+  const colorMap: Record<string, string> = { default: "inherit", subtle: "#6b7280", danger: "#dc2626" };
+  const style: any = {};
+  if (weight && weight !== "normal") style.fontWeight = weightMap[weight];
+  if (color && color !== "default") style.color = colorMap[color];
+  return <Text size={size} style={style}>{children}</Text>;
+}
+```
+
+### When the library component needs `aria-label` (accessibility)
+
+Some Kumo components warn if missing accessible labels. Always add:
+
+```tsx
+function MyInput({ name, placeholder, type = "text" }: any) {
+  return <Input name={name} placeholder={placeholder} type={type} aria-label={name} />;
+}
+```
+
+### Card padding via Tailwind classes
+
+If the library's CSS bundle includes Tailwind utilities, use `className` for spacing:
+
+```tsx
+function MyCard({ children, variant = "elevated" }: any) {
+  const classMap: Record<string, string> = {
+    elevated: "p-6 rounded-xl",
+    outlined: "p-5 rounded-lg",
+    ghost: "p-4 rounded-lg",
+  };
+  return <Surface className={classMap[variant] || classMap.elevated}>{children}</Surface>;
+}
+```
+
+Always test that the Tailwind utility classes exist in the library's bundled CSS before relying on them.
+
+## Console Warning Detection
+
+Kumo (and some other libraries) emit `console.warn` when receiving invalid enum values. Capture these in tests to validate your variant maps:
+
+```tsx
+// In tests:
+const warnings: string[] = [];
+const originalWarn = console.warn;
+beforeEach(() => { warnings.length = 0; console.warn = (...a: any[]) => warnings.push(a.join(" ")); });
+afterEach(() => { console.warn = originalWarn; });
+
+// After renderToString:
+expect(warnings).toHaveLength(0);  // Valid variants produce no warnings
+```
+
+Use this to find enum mismatches between your adapter and the upstream library.
 
 ## CSS & Styles
 
@@ -385,6 +510,71 @@ Plugin renderer.mjs must NOT bundle React. The host previewer exposes React on `
 
 ## Testing Your Adapter
 
+### Unit tests (renderer verification)
+
+Write `bun:test` unit tests that import the renderer source directly and use `react-dom/server` renderToString:
+
+```tsx
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import React from "react";
+import { renderToString } from "react-dom/server";
+import library from "../src/renderer";
+
+// Capture console.warn to detect library warnings
+const warnings: string[] = [];
+beforeEach(() => { warnings.length = 0; console.warn = (...a: any[]) => warnings.push(a.join(" ")); });
+afterEach(() => { console.warn = originalWarn; });
+
+function renderComponent(name: string, props: any): string {
+  const comp = (library.components as any)[name];
+  if (!comp) throw new Error(`Component "${name}" not found`);
+  return renderToString(React.createElement(comp.component, { props, renderNode }));
+}
+
+describe("Badge Component", () => {
+  it.each(["neutral", "info", "success", "warning", "error"])(
+    "renders variant=%s without warning", (variant) => {
+      const html = renderComponent("Badge", { children: "X", variant });
+      expect(html).toContain("X");
+      expect(warnings).toHaveLength(0);
+    }
+  );
+
+  it("danger maps to error", () => {
+    renderComponent("Badge", { children: "X", variant: "danger" });
+    expect(warnings).toHaveLength(0);  // no warning = mapping worked
+  });
+});
+```
+
+Test pattern coverage:
+- Each enum value renders without console warnings
+- Variant maps produce correct output
+- Compound sub-properties exist on imports (e.g., `expect(Radio.Item).toBeDefined()`)
+- Library metadata (component count, groups, root)
+
+### E2E tests (browser rendering)
+
+Playwright tests spawn the MCP server and verify components render in a real browser:
+
+```typescript
+test("full showcase renders with zero console warnings", async ({ page }) => {
+  const consoleMessages: string[] = [];
+  page.on("console", (msg) => {
+    if (msg.type() === "warning" || msg.type() === "error")
+      consoleMessages.push(`[${msg.type()}] ${msg.text()}`);
+  });
+
+  await writeSpec(specContent);
+  await page.goto(`http://localhost:${PORT}`);
+  await page.waitForTimeout(8000);
+
+  const body = await page.textContent("body");
+  expect(body).toContain("Expected text");
+  expect(consoleMessages.filter(m => m.startsWith("[error]"))).toHaveLength(0);
+});
+```
+
 ### Step-by-step verification
 
 ```bash
@@ -397,16 +587,14 @@ openui-mcp install-library ./dist/
 # 3. Set as project default
 openui-mcp init --library=my-lib
 
-# 4. Restart your MCP client (opencode, Claude Code, etc.)
+# 4. Run unit tests
+bun test ./adapters/my-lib/tests/renderer.test.ts
 
-# 5. Verify library loads
-# Call get_components with libraryId: "my-lib" — should return your components
+# 5. Run E2E tests
+bunx playwright test tests/e2e/my-lib-components.pw.ts
 
-# 6. Validate a spec
-# Call validate_spec with a spec using your component syntax
-
-# 7. Check previewer (if renderer.mjs built successfully)
-# Open http://localhost:6556 — should load your library's renderer + styles
+# 6. Manually verify in previewer
+# Open http://localhost:6556 — check console for warnings
 ```
 
 ### Common errors and fixes
@@ -471,19 +659,44 @@ When generating an `openui-mcp-adapter.yaml`:
 
 ## Reference: Kumo Adapter
 
-See `adapters/kumo/` in this repository for a complete working example:
+See `adapters/kumo/` for a complete, battle-tested working example:
 
 | File | Purpose |
 |------|---------|
-| `openui-mcp-adapter.yaml` | 16 components mapped to Kumo's real API |
-| `src/renderer.tsx` | Custom renderer with wrappers for Table, Tabs, Select, Stack, Card |
-| `styles.css` | Kumo's pre-built standalone CSS (`kumo-standalone.css`) |
-| `codegen.ts` | Reads `ai/component-registry.json` → generates YAML |
-| `build.ts` | Builds the complete adapter bundle |
+| `openui-mcp-adapter.yaml` | Declarative spec for 41 components across 4 groups |
+| `src/renderer.tsx` | Custom renderer (368 lines) — wrappers for all 41 components |
+| `styles.css` | Kumo's pre-built Tailwind CSS (116KB) |
+| `codegen.ts` | Reads Kumo's `ai/component-registry.json` → generates YAML/code |
+| `build.ts` | Bun build with React global plugin, CSS inlining |
+| `tests/renderer.test.ts` | 112 unit tests — every component × every variant |
 
-The Kumo adapter demonstrates:
-- Direct component mapping (Button, Text, Badge → pass-through)
-- Wrapper components (Table, Tabs, Select → compound pattern bridge)
-- Layout primitives (Stack → custom div-based flex wrapper)
-- Renamed components (Callout → wraps Kumo's Banner)
-- Custom renderer with `renderer:` field in YAML
+### Component Architecture
+
+| Category | Pattern | Examples |
+|----------|---------|----------|
+| **Direct pass-through** | Import → pass props directly | Button, Text, Badge, Input, Switch, Checkbox, Code, ClipboardText, Empty, Label, Link, Loader, Meter, SensitiveInput, Textarea, Pagination, LinkButton, DatePicker |
+| **HTML bridge** | Custom HTML + inline styles | Stack, Table, TableColumn, Select, SelectItem, Tabs, TabItem, Separator, Callout, Skeleton, Card, Grid, LayerCard |
+| **Compound bridge** | Sub-property React elements | RadioGroup (Radio.Item), Collapsible (Collapsible.Root), Breadcrumbs (Breadcrumbs.Link), DropdownMenu (DropdownMenu.Trigger), Dialog (Dialog.Root) |
+| **Wrappers** | Wraps child with provider/context | Tooltip (TooltipProvider), Field (Field) |
+
+### Variant Coverage Demonstrated
+
+- **Text**: 4 sizes × 4 weights × 7 colors (inline styles for unsupported props)
+- **Badge**: 8 variants with mapping (danger→error)
+- **Button**: 5 variants × 4 sizes
+- **Card**: 3 variants with Tailwind padding classes
+- **Code**: 5 languages with mapping (javascript→ts, json→jsonc)
+- **Callout**: 4 variants with custom HTML styling
+- **Link**: 3 variants (inline, current, plain)
+- **Separator**: horizontal + vertical
+- **Input**: 5 types (text, email, password, number, url)
+
+### Key Lessons
+
+1. **Bun preserves compound sub-properties**: `Radio.Item`, `Breadcrumbs.Link` etc. survive bundling. Only specific barrel-export patterns cause issues.
+2. **Surface is deprecated** in Kumo but still functional. `className` prop works for Tailwind utilities.
+3. **Kumo Text** only supports `size` and `variant` — no `weight` or `color` prop. Use inline styles for these.
+4. **Accessibility**: Kumo Input/SensitiveInput warn without `aria-label`. Always add it.
+5. **Tailwind CSS is fully available**: The 116KB Kumo CSS bundle includes all standard utilities (p-4, p-6, rounded-xl, gap-4, etc.).
+6. **Test console.warn**: Capture it during renderToString to detect API mismatches early.
+7. **Sub-component stubs**: Define `TableColumn`, `TabItem`, `SelectItem`, `BreadcrumbItem`, `MenuItem`, `RadioItem` with `component: () => null` — they're never rendered directly, only read as props by their parent wrapper.

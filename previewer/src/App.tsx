@@ -92,8 +92,10 @@ export default function App() {
 
   return (
     <ErrorBoundary spec={spec}>
-      <div style={{ height: "100vh", width: "100vw", overflow: "auto", background: "#fff", padding: "1rem" }}>
-        <Renderer response={spec} library={library} />
+      <div style={{ height: "100vh", width: "100vw", overflow: "auto", background: "#f9fafb", padding: "2rem" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          <Renderer response={spec} library={library} />
+        </div>
       </div>
     </ErrorBoundary>
   );

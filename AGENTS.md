@@ -32,7 +32,9 @@ Tools exposed:
 HTTP server (binds to `127.0.0.1`) serves:
 - Static files from embedded assets (compiled binary) or `previewer/dist/` (dev mode)
 - `/api/spec` endpoint (JSON: `{ spec, lastModified }`)
+- `/api/library-info` endpoint (JSON: `{ id, name, description }`) — reads `.openui/config.json`
 - SPA fallback (all routes → index.html)
+- Library assets: `/libraries/{id}/renderer.mjs`, `/libraries/{id}/styles.css`
 
 Dual serving mode:
 - **Compiled binary**: `scripts/embed-assets.ts` inlines `previewer/dist/` into `src/embedded-assets.ts` as strings at build time. Single executable, no external files.
@@ -93,15 +95,26 @@ Plugin loading flow:
 
 Security: SHA-256 checksums verified on every load. Source recorded in manifest for audit.
 
-## Adapter Authoring
+## Kumo Adapter (`adapters/kumo/`)
 
-See `adapters/ADAPTER_GUIDE.md` for creating library adapters.
+Reference adapter mapping 41 Cloudflare Kumo components. See `adapters/kumo/AGENTS.md` for details.
 
-Standard spec file: `openui-mcp-adapter.yaml` — declarative component mapping.
-JSON Schema: `adapters/adapter-schema.json` — validation for the YAML format.
-Reference adapter: `adapters/kumo/` — Cloudflare Kumo (demonstrates codegen from registry).
+Key files:
+- `src/renderer.tsx` — Component wrappers (368 lines) using Kumo primitives
+- `openui-mcp-adapter.yaml` — Declarative component mapping spec
+- `build.ts` — Bun build with React global plugin, CSS inlining
+- `codegen.ts` — Codegen from Kumo registry metadata
+- `tests/renderer.test.ts` — 112 unit tests verifying all variants render
 
-Build pipeline: `openui-mcp build-adapter ./openui-mcp-adapter.yaml --output ./dist/`
+Component groups (41 total):
+| Group | Count | Components |
+|-------|-------|------------|
+| Layout | 9 | Stack, Card, LayerCard, Grid, Tabs, TabItem, Separator, Collapsible, Dialog |
+| Content | 13 | Text, Badge, Callout, Code, ClipboardText, Empty, Label, Link, Loader, Breadcrumbs, BreadcrumbItem, Tooltip, Skeleton |
+| Data | 4 | Table, TableColumn, Meter, Pagination |
+| Forms | 15 | Button, LinkButton, Input, Textarea, SensitiveInput, Select, SelectItem, RadioGroup, RadioItem, Switch, Checkbox, Field, DropdownMenu, MenuItem, DatePicker |
+
+Compound components using Kumo sub-properties: RadioGroup (Radio.Item), Collapsible (Collapsible.Root/DefaultTrigger/DefaultPanel), Breadcrumbs (Breadcrumbs.Link/Separator/Current), DropdownMenu (DropdownMenu.Trigger/Content/Item/Separator), Dialog (Dialog.Root/Title/Description).
 
 ## Source Files
 
@@ -150,8 +163,46 @@ cd previewer && PREVIEWER_PORT=6556 bun run dev  # Vite dev server on 5173, prox
 ## Testing
 
 ```bash
-bun test   # Runs tests/server.test.ts + tests/specs.test.ts
+bun test                                       # 75 existing unit tests
+bun test ./adapters/kumo/tests/renderer.test.ts  # 112 Kumo renderer tests
+bunx playwright test                           # 34 E2E tests (22 default + 12 Kumo)
+bun run test:all                               # All three sequentially
 ```
+
+### Unit Tests
+
+`bun:test` with `bunfig.toml` rooted at `./tests/`. Kumo tests require explicit path (`./adapters/kumo/tests/renderer.test.ts`).
+
+Key test suites:
+- `tests/server.test.ts` — MCP server tool handlers
+- `tests/specs.test.ts` — Spec parsing and validation
+- `tests/builder.test.ts` — Adapter builder from YAML
+- `tests/plugins.test.ts` — Plugin install/load/verify
+- `tests/cli.test.ts` — CLI command parsing
+- `adapters/kumo/tests/renderer.test.ts` — All 41 Kumo components rendered via `react-dom/server`
+
+### E2E Tests
+
+Playwright tests spawn the MCP server on dedicated ports (6557–6561), write spec files, and verify browser rendering.
+
+Test files:
+- `tests/e2e/e2e.pw.ts` — Default library: text, cards, tables, charts, forms, dashboards, callouts, tabs
+- `tests/e2e/error-boundary.pw.ts` — Error recovery, spec replacement
+- `tests/e2e/library-switch.pw.ts` — Library info API, config switching
+- `tests/e2e/kumo.pw.ts` — Kumo: asset serving, basic rendering
+- `tests/e2e/kumo-components.pw.ts` — Kumo: 41-component showcase, all variants, console checking, layout verification
+
+E2E spec files in `tests/e2e/specs/` — 28 `.oui` files including `kumo-showcase.oui`.
+
+## CI
+
+Triggered on push/PR to `main`. See `.github/workflows/ci.yml` and `e2e.yml`.
+
+| Job | Runs |
+|-----|------|
+| `test` | `bun test` → build Kumo adapter → `bun test ./adapters/kumo/tests/renderer.test.ts` → verify binary compiles |
+| `e2e-default` | Playwright tests for default library (e2e.pw.ts, error-boundary.pw.ts, library-switch.pw.ts) |
+| `e2e-kumo` | Build Kumo adapter → Playwright tests for Kumo (kumo.pw.ts, kumo-components.pw.ts) |
 
 ## Building (compiled binary)
 
@@ -161,18 +212,25 @@ bun run build   # prebuild (previewer build + embed assets) then bun build --com
 
 Cross-compile: `--target=bun-linux-x64`, `--target=bun-darwin-arm64`, `--target=bun-windows-x64`
 
-## E2E Tests
-
-```bash
-bunx playwright test   # Browser-based tests (starts server, verifies rendering)
-```
-
-Tests cover: empty state, text, cards, tables, charts, forms, spec updates, complex dashboards, callouts, tabs.
-
 ## Scripts
 
-- `scripts/embed-assets.ts` — reads `previewer/dist/`, generates `src/embedded-assets.ts`
-- `scripts/generate-e2e-specs.ts` — reads component library, generates per-component test specs
+| Script | Purpose |
+|--------|---------|
+| `scripts/embed-assets.ts` | Reads `previewer/dist/`, generates `src/embedded-assets.ts` |
+| `scripts/generate-e2e-specs.ts` | Reads component library, generates per-component test specs |
+
+## Package Scripts
+
+| Script | What it runs |
+|--------|-------------|
+| `dev` | `bun src/server.ts` |
+| `test` | `bun test` (75 existing unit tests) |
+| `test:kumo` | `bun test ./adapters/kumo/tests/renderer.test.ts` (112 Kumo tests) |
+| `test:e2e` | `bunx playwright test` (34 E2E tests) |
+| `test:all` | Unit + Kumo renderer + E2E sequentially |
+| `prebuild` | Build previewer + embed assets |
+| `build` | Compile single-file binary |
+| `build:linux/mac/win` | Cross-compile for specific targets |
 
 ## Conventions
 

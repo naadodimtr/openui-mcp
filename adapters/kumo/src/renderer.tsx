@@ -1,11 +1,11 @@
 import { createLibrary, defineComponent, type ComponentRenderProps } from "@openuidev/lang-core";
 import { z } from "zod/v4";
 import React from "react";
-import { Button, Text, Badge, Surface, Input, Switch, Checkbox, Code, ClipboardText, Empty, Grid, Label, LayerCard, Link, Loader, Meter, SensitiveInput } from "@cloudflare/kumo";
+import { Button, Text, Badge, Surface, Input, Switch, Checkbox, Code, ClipboardText, Empty, Grid, Label, LayerCard, Link, Loader, Meter, SensitiveInput, Textarea, Radio, Collapsible, Breadcrumbs, Pagination, LinkButton, SkeletonLine, Field, Tooltip, TooltipProvider, DropdownMenu, Dialog, DatePicker } from "@cloudflare/kumo";
 
 function KumoStack({ props, renderNode }: ComponentRenderProps) {
   const { children, direction = "column", gap = "md", align, justify } = props as any;
-  const gapMap: Record<string, string> = { none: "0", xs: "0.25rem", sm: "0.5rem", md: "0.75rem", lg: "1rem", xl: "1.5rem" };
+  const gapMap: Record<string, string> = { none: "0", xs: "0.25rem", sm: "0.5rem", md: "1rem", lg: "1.5rem", xl: "2rem" };
   const rendered = Array.isArray(children) ? children.map((c: any, i: number) => <React.Fragment key={i}>{renderNode(c)}</React.Fragment>) : null;
   return (
     <div style={{
@@ -22,9 +22,10 @@ function KumoStack({ props, renderNode }: ComponentRenderProps) {
 }
 
 function KumoCard({ props, renderNode }: ComponentRenderProps) {
-  const { children } = props as any;
+  const { children, variant = "elevated" } = props as any;
+  const classMap: Record<string, string> = { elevated: "p-6 rounded-xl", outlined: "p-5 rounded-lg", ghost: "p-4 rounded-lg" };
   const rendered = Array.isArray(children) ? children.map((c: any, i: number) => <React.Fragment key={i}>{renderNode(c)}</React.Fragment>) : null;
-  return <Surface>{rendered}</Surface>;
+  return <Surface className={classMap[variant] || classMap.elevated}>{rendered}</Surface>;
 }
 
 function KumoText({ props }: ComponentRenderProps) {
@@ -170,7 +171,7 @@ function KumoLabel({ props }: ComponentRenderProps) {
 function KumoLayerCard({ props, renderNode }: ComponentRenderProps) {
   const { children } = props as any;
   const rendered = Array.isArray(children) ? children.map((c: any, i: number) => <React.Fragment key={i}>{renderNode(c)}</React.Fragment>) : null;
-  return <LayerCard>{rendered}</LayerCard>;
+  return <LayerCard className="p-4">{rendered}</LayerCard>;
 }
 
 function KumoLink({ props }: ComponentRenderProps) {
@@ -191,6 +192,125 @@ function KumoMeter({ props }: ComponentRenderProps) {
 function KumoSensitiveInput({ props }: ComponentRenderProps) {
   const { name, placeholder, label } = props as any;
   return <SensitiveInput name={name} placeholder={placeholder} aria-label={label || name} />;
+}
+
+function KumoTextarea({ props }: ComponentRenderProps) {
+  const { name, placeholder, rows = 3 } = props as any;
+  return <Textarea name={name} placeholder={placeholder} rows={rows} aria-label={name} />;
+}
+
+function KumoRadioGroup({ props }: ComponentRenderProps) {
+  const { name, items, defaultValue } = props as any;
+  if (!items || !Array.isArray(items)) return null;
+  const options = items.map((item: any) => item.props || item);
+  return (
+    <Radio name={name} defaultValue={defaultValue || options[0]?.value}>
+      {options.map((opt: any) => <Radio.Item key={opt.value} value={opt.value} label={opt.label} />)}
+    </Radio>
+  );
+}
+
+function KumoRadioItem() { return null; }
+
+function KumoTooltip({ props, renderNode }: ComponentRenderProps) {
+  const { content, children } = props as any;
+  const rendered = Array.isArray(children) ? children.map((c: any, i: number) => <React.Fragment key={i}>{renderNode(c)}</React.Fragment>) : null;
+  return (
+    <TooltipProvider>
+      <Tooltip content={content}>{rendered}</Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function KumoCollapsible({ props, renderNode }: ComponentRenderProps) {
+  const { title, children } = props as any;
+  const rendered = Array.isArray(children) ? children.map((c: any, i: number) => <React.Fragment key={i}>{renderNode(c)}</React.Fragment>) : null;
+  return (
+    <Collapsible.Root>
+      <Collapsible.DefaultTrigger>{title}</Collapsible.DefaultTrigger>
+      <Collapsible.DefaultPanel>{rendered}</Collapsible.DefaultPanel>
+    </Collapsible.Root>
+  );
+}
+
+function KumoBreadcrumbs({ props }: ComponentRenderProps) {
+  const { items } = props as any;
+  if (!items || !Array.isArray(items)) return null;
+  const crumbs = items.map((item: any) => item.props || item);
+  return (
+    <Breadcrumbs>
+      {crumbs.map((crumb: any, i: number) => (
+        <React.Fragment key={i}>
+          {i > 0 && <Breadcrumbs.Separator />}
+          {crumb.href ? <Breadcrumbs.Link href={crumb.href}>{crumb.label}</Breadcrumbs.Link> : <Breadcrumbs.Current>{crumb.label}</Breadcrumbs.Current>}
+        </React.Fragment>
+      ))}
+    </Breadcrumbs>
+  );
+}
+
+function KumoBreadcrumbItem() { return null; }
+
+function KumoPagination({ props }: ComponentRenderProps) {
+  const { totalPages, page = 1 } = props as any;
+  return <Pagination totalPages={totalPages} page={page} />;
+}
+
+function KumoLinkButton({ props }: ComponentRenderProps) {
+  const { children, href, variant = "primary" } = props as any;
+  return <LinkButton href={href} variant={variant}>{children}</LinkButton>;
+}
+
+function KumoSkeleton({ props }: ComponentRenderProps) {
+  const { count = 3 } = props as any;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%" }}>
+      {Array.from({ length: count }, (_, i) => <SkeletonLine key={i} />)}
+    </div>
+  );
+}
+
+function KumoField({ props, renderNode }: ComponentRenderProps) {
+  const { label, hint, children } = props as any;
+  const rendered = Array.isArray(children) ? children.map((c: any, i: number) => <React.Fragment key={i}>{renderNode(c)}</React.Fragment>) : null;
+  return <Field label={label} hint={hint}>{rendered}</Field>;
+}
+
+function KumoDropdownMenu({ props }: ComponentRenderProps) {
+  const { trigger, items } = props as any;
+  if (!items || !Array.isArray(items)) return null;
+  const menuItems = items.map((item: any) => item.props || item);
+  return (
+    <DropdownMenu>
+      <DropdownMenu.Trigger>{trigger}</DropdownMenu.Trigger>
+      <DropdownMenu.Content>
+        {menuItems.map((item: any, i: number) => (
+          item.separator ? <DropdownMenu.Separator key={i} /> : <DropdownMenu.Item key={i}>{item.label}</DropdownMenu.Item>
+        ))}
+      </DropdownMenu.Content>
+    </DropdownMenu>
+  );
+}
+
+function KumoMenuItem() { return null; }
+
+function KumoDialog({ props, renderNode }: ComponentRenderProps) {
+  const { title, description, children } = props as any;
+  const rendered = Array.isArray(children) ? children.map((c: any, i: number) => <React.Fragment key={i}>{renderNode(c)}</React.Fragment>) : null;
+  return (
+    <div style={{ border: "1px solid var(--color-kumo-line, #e5e7eb)", borderRadius: "0.75rem", padding: "1.5rem", background: "var(--color-kumo-base, #fff)", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+      <Dialog.Root open={true}>
+        <Dialog.Title>{title}</Dialog.Title>
+        {description && <Dialog.Description>{description}</Dialog.Description>}
+        <div style={{ marginTop: "1rem" }}>{rendered}</div>
+      </Dialog.Root>
+    </div>
+  );
+}
+
+function KumoDatePicker({ props }: ComponentRenderProps) {
+  const { name, label } = props as any;
+  return <DatePicker name={name} label={label} />;
 }
 
 const StackDef = defineComponent({ name: "Stack", props: z.object({ children: z.array(z.any()), direction: z.enum(["row", "column"]).optional(), gap: z.enum(["none", "xs", "sm", "md", "lg", "xl"]).optional(), align: z.enum(["start", "center", "end", "stretch", "baseline"]).optional(), justify: z.enum(["start", "center", "end", "between", "around", "evenly"]).optional() }), description: "Flex container with direction and gap", component: KumoStack });
@@ -219,14 +339,29 @@ const LinkDef = defineComponent({ name: "Link", props: z.object({ children: z.st
 const LoaderDef = defineComponent({ name: "Loader", props: z.object({ size: z.enum(["sm", "base", "lg"]).optional() }), description: "Animated loading spinner", component: KumoLoader });
 const MeterDef = defineComponent({ name: "Meter", props: z.object({ value: z.number(), max: z.number().optional(), label: z.string().optional(), showValue: z.boolean().optional() }), description: "Progress bar showing measured value", component: KumoMeter });
 const SensitiveInputDef = defineComponent({ name: "SensitiveInput", props: z.object({ name: z.string(), placeholder: z.string().optional(), label: z.string().optional() }), description: "Masked password/secret input with reveal toggle", component: KumoSensitiveInput });
+const TextareaDef = defineComponent({ name: "Textarea", props: z.object({ name: z.string(), placeholder: z.string().optional(), rows: z.number().optional() }), description: "Multiline text input", component: KumoTextarea });
+const RadioGroupDef = defineComponent({ name: "RadioGroup", props: z.object({ name: z.string(), items: z.array(z.any()), defaultValue: z.string().optional() }), description: "Radio button group", component: KumoRadioGroup });
+const RadioItemDef = defineComponent({ name: "RadioItem", props: z.object({ value: z.string(), label: z.string() }), description: "Option for RadioGroup", component: KumoRadioItem });
+const TooltipDef = defineComponent({ name: "Tooltip", props: z.object({ content: z.string(), children: z.array(z.any()) }), description: "Hover tooltip around content", component: KumoTooltip });
+const CollapsibleDef = defineComponent({ name: "Collapsible", props: z.object({ title: z.string(), children: z.array(z.any()) }), description: "Expandable/collapsible section", component: KumoCollapsible });
+const BreadcrumbsDef = defineComponent({ name: "Breadcrumbs", props: z.object({ items: z.array(z.any()) }), description: "Navigation breadcrumb trail", component: KumoBreadcrumbs });
+const BreadcrumbItemDef = defineComponent({ name: "BreadcrumbItem", props: z.object({ label: z.string(), href: z.string().optional() }), description: "Item in Breadcrumbs", component: KumoBreadcrumbItem });
+const PaginationDef = defineComponent({ name: "Pagination", props: z.object({ totalPages: z.number(), page: z.number().optional() }), description: "Page navigation controls", component: KumoPagination });
+const LinkButtonDef = defineComponent({ name: "LinkButton", props: z.object({ children: z.string(), href: z.string(), variant: z.enum(["primary", "secondary", "ghost", "destructive", "outline"]).optional() }), description: "Button styled as a link", component: KumoLinkButton });
+const SkeletonDef = defineComponent({ name: "Skeleton", props: z.object({ count: z.number().optional() }), description: "Loading placeholder lines", component: KumoSkeleton });
+const FieldDef = defineComponent({ name: "Field", props: z.object({ label: z.string(), hint: z.string().optional(), children: z.array(z.any()) }), description: "Form field wrapper with label and hint", component: KumoField });
+const DropdownMenuDef = defineComponent({ name: "DropdownMenu", props: z.object({ trigger: z.string(), items: z.array(z.any()) }), description: "Action menu triggered by button", component: KumoDropdownMenu });
+const MenuItemDef = defineComponent({ name: "MenuItem", props: z.object({ label: z.string(), separator: z.boolean().optional() }), description: "Item in DropdownMenu", component: KumoMenuItem });
+const DialogDef = defineComponent({ name: "Dialog", props: z.object({ title: z.string(), description: z.string().optional(), children: z.array(z.any()).optional() }), description: "Modal dialog panel", component: KumoDialog });
+const DatePickerDef = defineComponent({ name: "DatePicker", props: z.object({ name: z.string(), label: z.string().optional() }), description: "Calendar date picker", component: KumoDatePicker });
 
 const library = createLibrary({
-  components: [StackDef, CardDef, TextDef, ButtonDef, BadgeDef, CalloutDef, TableDef, TableColumnDef, InputDef, SelectDef, SelectItemDef, TabsDef, TabItemDef, SwitchDef, CheckboxDef, SeparatorDef, CodeDef, ClipboardTextDef, EmptyDef, GridDef, LabelDef, LayerCardDef, LinkDef, LoaderDef, MeterDef, SensitiveInputDef],
+  components: [StackDef, CardDef, TextDef, ButtonDef, BadgeDef, CalloutDef, TableDef, TableColumnDef, InputDef, SelectDef, SelectItemDef, TabsDef, TabItemDef, SwitchDef, CheckboxDef, SeparatorDef, CodeDef, ClipboardTextDef, EmptyDef, GridDef, LabelDef, LayerCardDef, LinkDef, LoaderDef, MeterDef, SensitiveInputDef, TextareaDef, RadioGroupDef, RadioItemDef, TooltipDef, CollapsibleDef, BreadcrumbsDef, BreadcrumbItemDef, PaginationDef, LinkButtonDef, SkeletonDef, FieldDef, DropdownMenuDef, MenuItemDef, DialogDef, DatePickerDef],
   componentGroups: [
-    { name: "Layout", components: ["Stack", "Card", "LayerCard", "Grid", "Tabs", "TabItem", "Separator"] },
-    { name: "Content", components: ["Text", "Badge", "Callout", "Code", "ClipboardText", "Empty", "Label", "Link", "Loader"] },
-    { name: "Data", components: ["Table", "TableColumn", "Meter"] },
-    { name: "Forms", components: ["Button", "Input", "SensitiveInput", "Select", "SelectItem", "Switch", "Checkbox"] },
+    { name: "Layout", components: ["Stack", "Card", "LayerCard", "Grid", "Tabs", "TabItem", "Separator", "Collapsible", "Dialog"] },
+    { name: "Content", components: ["Text", "Badge", "Callout", "Code", "ClipboardText", "Empty", "Label", "Link", "Loader", "Breadcrumbs", "BreadcrumbItem", "Tooltip", "Skeleton"] },
+    { name: "Data", components: ["Table", "TableColumn", "Meter", "Pagination"] },
+    { name: "Forms", components: ["Button", "LinkButton", "Input", "Textarea", "SensitiveInput", "Select", "SelectItem", "RadioGroup", "RadioItem", "Switch", "Checkbox", "Field", "DropdownMenu", "MenuItem", "DatePicker"] },
   ],
   root: "Stack",
 });

@@ -53,4 +53,4 @@ jobs:
         run: bunx playwright install chromium
 
       - name: Run Kumo E2E tests
-        run: bunx playwright test tests/e2e/kumo.pw.ts
+        run: bunx playwright test tests/e2e/kumo.pw.ts tests/e2e/kumo-components.pw.ts

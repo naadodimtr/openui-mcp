@@ -24,6 +24,12 @@ jobs:
       - name: Run unit tests
         run: bun test
 
+      - name: Build Kumo adapter
+        run: bun adapters/kumo/build.ts
+
+      - name: Run Kumo renderer unit tests
+        run: bun test ./adapters/kumo/tests/renderer.test.ts
+
       - name: Verify build compiles
         run: |
           bun scripts/embed-assets.ts

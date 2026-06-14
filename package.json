@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "bun src/server.ts",
     "test": "bun test",
+    "test:kumo": "bun test ./adapters/kumo/tests/renderer.test.ts",
     "test:e2e": "bunx playwright test",
+    "test:all": "bun test && bun test ./adapters/kumo/tests/renderer.test.ts && bunx playwright test",
     "embed": "bun scripts/embed-assets.ts",
     "prebuild": "cd previewer && bun run build && cd .. && bun run embed",
     "build": "bun build --compile src/server.ts --outfile dist/openui-mcp",
