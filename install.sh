@@ -50,13 +50,7 @@ echo "  To:   $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 
 curl -fsSL "$URL" | tar -xz -C "$INSTALL_DIR"
-
-EXTRACTED="$INSTALL_DIR/$ARTIFACT"
-BINARY="$INSTALL_DIR/openui-mcp"
-if [ -f "$EXTRACTED" ]; then
-  mv -f "$EXTRACTED" "$BINARY"
-fi
-chmod +x "$BINARY"
+chmod +x "$INSTALL_DIR/openui-mcp"
 
 if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
   SHELL_RC=""

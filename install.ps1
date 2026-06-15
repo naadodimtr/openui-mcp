@@ -30,12 +30,6 @@ Expand-Archive -Path $TempZip -DestinationPath $InstallDir -Force
 Remove-Item $TempZip
 
 $Binary = Join-Path $InstallDir "openui-mcp.exe"
-$Extracted = Join-Path $InstallDir "$Artifact.exe"
-if (Test-Path $Extracted -PathType Leaf) {
-    Move-Item -Force $Extracted $Binary
-} elseif (Test-Path (Join-Path $InstallDir $Artifact) -PathType Leaf) {
-    Move-Item -Force (Join-Path $InstallDir $Artifact) $Binary
-}
 
 $CurrentPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($CurrentPath -notlike "*$InstallDir*") {

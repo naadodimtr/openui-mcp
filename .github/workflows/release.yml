@@ -82,13 +82,21 @@ jobs:
       - name: Compile binary
         run: bun build --compile src/server.ts --target=${{ matrix.target }} --outfile ${{ matrix.artifact }}
 
+      - name: Rename binary (Unix)
+        if: runner.os != 'Windows'
+        run: mv ${{ matrix.artifact }} openui-mcp
+
+      - name: Rename binary (Windows)
+        if: runner.os == 'Windows'
+        run: ren ${{ matrix.artifact }}.exe openui-mcp.exe
+
       - name: Package (Unix)
         if: runner.os != 'Windows'
-        run: tar -czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
+        run: tar -czf ${{ matrix.artifact }}.tar.gz openui-mcp
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
-        run: Compress-Archive -Path "${{ matrix.artifact }}.exe" -DestinationPath "${{ matrix.artifact }}.zip"
+        run: Compress-Archive -Path openui-mcp.exe -DestinationPath "${{ matrix.artifact }}.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

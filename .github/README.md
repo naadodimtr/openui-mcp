@@ -62,7 +62,7 @@ The agent keeps changing the spec.
 ## Demo
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/naadodimtr/openui-mcp/main/assets/demo.gif" alt="OpenUI MCP Demo" width="800">
+  <img src="../assets/demo.gif" alt="OpenUI MCP Demo" width="1200">
 </p>
 
 ## Adapters 
@@ -82,13 +82,13 @@ More adapters coming soon.
 Linux/macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/naadodimtr/openui-mcp/v1.0.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/naadodimtr/openui-mcp/release/install.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/naadodimtr/openui-mcp/v1.0.0/install.ps1 | iex
+irm https://raw.githubusercontent.com/naadodimtr/openui-mcp/release/install.ps1 | iex
 ```
 
 Update later:
