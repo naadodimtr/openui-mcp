@@ -52,6 +52,11 @@ mkdir -p "$INSTALL_DIR"
 curl -fsSL "$URL" | tar -xz -C "$INSTALL_DIR"
 chmod +x "$INSTALL_DIR/openui-mcp"
 
+if [ -d "$INSTALL_DIR/kumo" ]; then
+  "$INSTALL_DIR/openui-mcp" install-library "$INSTALL_DIR/kumo"
+  rm -rf "$INSTALL_DIR/kumo"
+fi
+
 if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
   SHELL_RC=""
   if [ -f "$HOME/.zshrc" ]; then

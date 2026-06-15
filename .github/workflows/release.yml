@@ -6,9 +6,6 @@ on:
 permissions:
   contents: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -17,7 +14,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       exists: ${{ steps.check.outputs.exists }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Extract version
         id: version
@@ -64,7 +61,7 @@ jobs:
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
@@ -82,6 +79,9 @@ jobs:
       - name: Compile binary
         run: bun build --compile src/server.ts --target=${{ matrix.target }} --outfile ${{ matrix.artifact }}
 
+      - name: Build Kumo adapter
+        run: bun adapters/kumo/build.ts
+
       - name: Rename binary (Unix)
         if: runner.os != 'Windows'
         run: mv ${{ matrix.artifact }} openui-mcp
@@ -90,16 +90,24 @@ jobs:
         if: runner.os == 'Windows'
         run: ren ${{ matrix.artifact }}.exe openui-mcp.exe
 
-      - name: Package (Unix)
+      - name: Stage and package (Unix)
         if: runner.os != 'Windows'
-        run: tar -czf ${{ matrix.artifact }}.tar.gz openui-mcp
+        run: |
+          mkdir -p _stage/kumo
+          cp openui-mcp _stage/
+          cp -r adapters/kumo/dist/* _stage/kumo/
+          tar -czf ${{ matrix.artifact }}.tar.gz -C _stage .
 
-      - name: Package (Windows)
+      - name: Stage and package (Windows)
         if: runner.os == 'Windows'
-        run: Compress-Archive -Path openui-mcp.exe -DestinationPath "${{ matrix.artifact }}.zip"
+        run: |
+          mkdir _stage\kumo
+          copy openui-mcp.exe _stage\
+          xcopy adapters\kumo\dist _stage\kumo\ /E /Y
+          Compress-Archive -Path _stage\* -DestinationPath "${{ matrix.artifact }}.zip"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: |
@@ -110,15 +118,15 @@ jobs:
     needs: [prepare, build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           generate_release_notes: true
