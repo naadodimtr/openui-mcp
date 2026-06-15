@@ -26,6 +26,10 @@ New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
 $TempZip = "$env:TEMP\openui-mcp.zip"
 Invoke-WebRequest -Uri $Url -OutFile $TempZip
+
+Remove-Item (Join-Path $InstallDir "openui-mcp.exe") -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $InstallDir "kumo") -Recurse -Force -ErrorAction SilentlyContinue
+
 Expand-Archive -Path $TempZip -DestinationPath $InstallDir -Force
 Remove-Item $TempZip
 
