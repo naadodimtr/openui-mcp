@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { spawn, spawnSync, ChildProcess } from "node:child_process";
+import { spawn, ChildProcess } from "node:child_process";
 import { writeFile, mkdir, rm, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -40,11 +40,6 @@ test.beforeAll(async () => {
   await mkdir(SPEC_DIR, { recursive: true });
   await writeFile(SPEC_FILE, "", "utf-8");
   await writeFile(resolve(SPEC_DIR, "config.json"), JSON.stringify({ library: "kumo" }), "utf-8");
-
-  spawnSync("bun", ["src/server.ts", "install-library", KUMO_DIST], {
-    cwd: SERVER_CWD,
-    shell: true,
-  });
 
   serverProcess = spawn("bun", ["src/server.ts"], {
     cwd: SERVER_CWD,

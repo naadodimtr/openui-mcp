@@ -52,6 +52,9 @@ jobs:
       - name: Build Kumo adapter
         run: bun adapters/kumo/build.ts
 
+      - name: Install Kumo library
+        run: bun src/server.ts install-library ./adapters/kumo/dist/
+
       - name: Install Playwright
         run: bunx playwright install chromium
 

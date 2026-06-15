@@ -144,6 +144,7 @@ function generateRendererSource(spec: AdapterSpec): string {
 
   const importMap = new Map<string, string[]>();
   for (const comp of spec.components) {
+    if (!comp.import) continue;
     const match = comp.import.match(/\{(.+)\}\s+from\s+(.+)/);
     if (match) {
       const names = match[1].split(",").map((n) => n.trim());
@@ -159,6 +160,7 @@ function generateRendererSource(spec: AdapterSpec): string {
   lines.push(``);
 
   for (const comp of spec.components) {
+    if (!comp.import) continue;
     const match = comp.import.match(/\{(.+)\}/);
     const reactComp = match ? match[1].split(",")[0].trim() : comp.name;
     lines.push(`const ${comp.name}Def = defineComponent({`);
