@@ -16,7 +16,6 @@ description: Minimal test library
 
 components:
   - name: Box
-    import: "{ Box } from test-pkg"
     description: "A simple container"
     props:
       - name: children
@@ -28,7 +27,6 @@ components:
         position: 1
 
   - name: Label
-    import: "{ Label } from test-pkg"
     description: "Text label"
     props:
       - name: text

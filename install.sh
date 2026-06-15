@@ -73,7 +73,7 @@ echo "  ✓ openui-mcp $VERSION installed successfully!"
 echo ""
 
 if [ -t 0 ] || [ -e /dev/tty ]; then
-  "$INSTALL_DIR/openui-mcp" --setup < /dev/tty
+  "$BINARY" --setup < /dev/tty
 else
   echo "  Run 'openui-mcp --setup' to configure your MCP client."
   echo "  Preview: http://localhost:6556 (default)"
