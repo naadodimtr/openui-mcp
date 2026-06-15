@@ -31,6 +31,12 @@ Remove-Item $TempZip
 
 $Binary = Join-Path $InstallDir "openui-mcp.exe"
 
+$KumoDir = Join-Path $InstallDir "kumo"
+if (Test-Path $KumoDir) {
+    & $Binary install-library $KumoDir
+    Remove-Item -Recurse -Force $KumoDir
+}
+
 $CurrentPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($CurrentPath -notlike "*$InstallDir*") {
     [Environment]::SetEnvironmentVariable("Path", "$InstallDir;$CurrentPath", "User")

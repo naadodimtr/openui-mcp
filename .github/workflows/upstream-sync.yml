@@ -8,14 +8,11 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   check-and-update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
 
       - name: Check for new versions
@@ -67,7 +64,7 @@ jobs:
 
       - name: Create PR
         if: steps.check.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           title: "chore: bump @openuidev packages to ${{ steps.check.outputs.latest }}"
           branch: "auto/openui-${{ steps.check.outputs.latest }}"
