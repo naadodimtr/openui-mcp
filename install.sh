@@ -49,6 +49,9 @@ echo "  To:   $INSTALL_DIR"
 
 mkdir -p "$INSTALL_DIR"
 
+rm -f "$INSTALL_DIR/openui-mcp"
+rm -rf "$INSTALL_DIR/kumo"
+
 curl -fsSL "$URL" | tar -xz -C "$INSTALL_DIR"
 chmod +x "$INSTALL_DIR/openui-mcp"
 
