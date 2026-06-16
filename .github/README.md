@@ -69,7 +69,7 @@ The agent keeps changing the spec.
 
 Adapters let you work with different component libraries. 
 
-Cloudflare's Kumo UI Design System has first class support.
+<a href="https://cloudflare.com">Cloudflare</a>'s <a href="https://kumo-ui.com">Kumo UI Design System</a> has first class support.
 
 More adapters coming soon.
 
