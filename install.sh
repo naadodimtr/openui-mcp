@@ -48,6 +48,7 @@ echo "  From: $URL"
 echo "  To:   $INSTALL_DIR"
 
 mkdir -p "$INSTALL_DIR"
+mkdir -p "$INSTALL_DIR/specs"
 
 rm -f "$INSTALL_DIR/openui-mcp"
 rm -rf "$INSTALL_DIR/kumo"
@@ -81,7 +82,7 @@ echo "  ✓ openui-mcp $VERSION installed successfully!"
 echo ""
 
 if [ -t 0 ] || [ -e /dev/tty ]; then
-  "$BINARY" --setup < /dev/tty
+  "$INSTALL_DIR/openui-mcp" --setup < /dev/tty
 else
   echo "  Run 'openui-mcp --setup' to configure your MCP client."
   echo "  Preview: http://localhost:6556 (default)"
