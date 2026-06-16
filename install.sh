@@ -49,6 +49,7 @@ echo "  To:   $INSTALL_DIR"
 
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR/specs"
+echo '{"library": "kumo"}' > "$INSTALL_DIR/specs/config.json"
 
 rm -f "$INSTALL_DIR/openui-mcp"
 rm -rf "$INSTALL_DIR/kumo"
