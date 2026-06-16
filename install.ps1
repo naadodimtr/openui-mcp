@@ -24,7 +24,7 @@ Write-Host ""
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $InstallDir "specs") | Out-Null
-Set-Content -Path (Join-Path $InstallDir "specs" "config.json") -Value '{"library": "kumo"}'
+Set-Content -Path "$InstallDir\specs\config.json" -Value '{"library": "kumo"}'
 
 $TempZip = "$env:TEMP\openui-mcp.zip"
 Invoke-WebRequest -Uri $Url -OutFile $TempZip
