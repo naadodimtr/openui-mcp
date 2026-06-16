@@ -38,7 +38,7 @@ function stdioEntry(port: number) {
   return {
     command: binaryPath,
     args: [],
-    env: { PREVIEWER_PORT: String(port) },
+    env: { PREVIEWER_PORT: String(port), OPENUI_SPEC_DIR: join(homedir(), ".openui-mcp", "specs") },
   };
 }
 
@@ -52,7 +52,7 @@ const tools: ToolConfig[] = [
       data.mcp.openui = {
         type: "local",
         command: [binaryPath],
-        environment: { PREVIEWER_PORT: String(port) },
+        environment: { PREVIEWER_PORT: String(port), OPENUI_SPEC_DIR: join(home, ".openui-mcp", "specs") },
         enabled: true,
       };
       writeJson(this.configPath, data);

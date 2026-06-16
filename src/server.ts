@@ -178,10 +178,14 @@ async function serveDisk(filePath: string): Promise<Response | null> {
 }
 
 function startHttpServer() {
-  try {
-  Bun.serve({
-    hostname: "127.0.0.1",
-    port: PREVIEWER_PORT,
+  let attempts = 0;
+
+  function tryBind() {
+    attempts++;
+    try {
+      Bun.serve({
+        hostname: "127.0.0.1",
+        port: PREVIEWER_PORT,
     async fetch(req) {
       const url = new URL(req.url);
 
@@ -242,18 +246,23 @@ function startHttpServer() {
         if (fallback) return fallback;
       }
 
-      return new Response("Not Found", { status: 404 });
-    },
-  });
-  } catch (err) {
-    const msg = (err as Error).message || "";
-    if (msg.includes("EADDRINUSE") || msg.includes("address already in use") || msg.includes("already being used") || msg.includes("Failed to start")) {
-      console.error(`[openui-mcp] Port ${PREVIEWER_PORT} is already in use. Previewer disabled — MCP tools still active.`);
-      console.error(`[openui-mcp] To use a different port: openui-mcp --port=${PREVIEWER_PORT + 1}`);
-      return;
+        return new Response("Not Found", { status: 404 });
+      },
+    });
+    } catch (err) {
+      const msg = (err as Error).message || "";
+      if (msg.includes("EADDRINUSE") || msg.includes("address already in use") || msg.includes("already being used") || msg.includes("Failed to start")) {
+        if (attempts === 1) {
+          console.error(`[openui-mcp] Port ${PREVIEWER_PORT} is already in use — retrying every 5s...`);
+        }
+        setTimeout(tryBind, 5000);
+        return;
+      }
+      throw err;
     }
-    throw err;
   }
+
+  tryBind();
 }
 
 const DEFAULT_LIBRARY = getProjectLibrary(SPEC_DIR);
