@@ -1,0 +1,1 @@
+root = Stack([TextContent("VisualCardBlock component test")])
