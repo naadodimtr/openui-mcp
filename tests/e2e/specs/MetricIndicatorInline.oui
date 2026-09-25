@@ -1,0 +1,1 @@
+root = Stack([TextContent("MetricIndicatorInline component test")])
