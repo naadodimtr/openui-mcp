@@ -1,0 +1,1 @@
+root = Stack([TextContent("SnippetCardItem component test")])
